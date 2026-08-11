@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="theme-color" content="#0f1f3d"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Planner"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Muslim Daily Planner</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8f6f0;min-height:100vh;padding-bottom:90px;}
+input,textarea,button,select{font-family:inherit;}
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:99px;outline:none;cursor:pointer;background:#ddd8ce;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#c8a84b;cursor:pointer;}
+:root{--navy:#0f1f3d;--teal:#1a6b72;--teal-l:#22919b;--gold:#c8a84b;--gold-l:#e8c96d;--cream:#f8f6f0;--muted:#6b7a8d;--border:#ddd8ce;--green:#1e8a4a;--red:#c0392b;}
+
+/* ── UTILITY CLASSES ── */
+.text-navy { color: var(--navy); }
+.bg-cream { background: var(--cream); }
+.border-ddd { border-color: var(--border); }
+.btn-counter { background: var(--cream); border: 1px solid var(--border); color: var(--navy); }
+.fast-card { padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--cream); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
+.active-fast { background: rgba(26,107,114,0.12) !important; border-color: #1a6b72 !important; }
+.book-row { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: var(--cream); }
+
+.header{background:linear-gradient(135deg,#0f1f3d 0%,#1a6b72 100%);padding:24px 20px 16px;position:relative;overflow:hidden;}
+.header-ring{position:absolute;border-radius:50%;border:2px solid rgba(200,168,75,0.18);pointer-events:none;}
+.bismillah{font-size:11px;color:#e8c96d;letter-spacing:3px;margin-bottom:4px;}
+.header-title{font-size:22px;font-weight:700;color:#fff;margin:2px 0 1px;}
+.header-dates{display:flex;gap:10px;flex-wrap:wrap;margin-top:3px;}
+.header-hijri{font-size:11px;color:rgba(200,168,75,0.8);font-style:italic;}
+.header-bangla{font-size:11px;color:rgba(200,220,255,0.7);font-style:italic;}
+.tabs{background:#0f1f3d;position:sticky;top:0;z-index:100;display:flex;overflow-x:auto;border-bottom:1px solid rgba(200,168,75,0.2);}
+.tab{flex:1;border:none;background:none;cursor:pointer;padding:11px 6px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;border-bottom:2px solid transparent;min-width:56px;}
+.tab.active{border-bottom-color:#c8a84b;}
+.tab-icon{font-size:17px;}
+.tab-label{font-size:9px;color:rgba(255,255,255,0.4);font-weight:400;letter-spacing:0.5px;}
+.tab.active .tab-label{color:#e8c96d;font-weight:700;}
+.cal-bar{background:#0f1f3d;border-bottom:1px solid rgba(200,168,75,0.15);padding:8px 0 6px;position:sticky;top:42px;z-index:99;}
+.cal-bar-inner{max-width:640px;margin:0 auto;padding:0 10px;}
+.cal-month-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.cal-month-label{font-size:11px;font-weight:700;color:#e8c96d;letter-spacing:2px;text-transform:uppercase;}
+.cal-nav{background:none;border:none;color:rgba(255,255,255,0.5);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px;}
+.cal-nav:hover{color:#e8c96d;}
+.cal-today-btn{background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.35);color:#e8c96d;font-size:10px;font-weight:700;cursor:pointer;padding:3px 9px;border-radius:99px;}
+.cal-days-scroll{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.cal-days-scroll::-webkit-scrollbar{display:none;}
+.cal-day{flex-shrink:0;width:36px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;border-radius:8px;padding:4px 2px;transition:background 0.15s;border:1px solid transparent;}
+.cal-day:hover{background:rgba(255,255,255,0.07);}
+.cal-day.today{border-color:rgba(200,168,75,0.5);}
+.cal-day.selected{background:rgba(200,168,75,0.18);border-color:#c8a84b;}
+.cal-day-name{font-size:9px;color:rgba(255,255,255,0.35);font-weight:600;}
+.cal-day-num{font-size:13px;font-weight:700;color:rgba(255,255,255,0.75);}
+.cal-day.today .cal-day-num,.cal-day.selected .cal-day-num{color:#e8c96d;}
+.cal-day.future .cal-day-num{color:rgba(255,255,255,0.25);}
+.cal-dot{width:5px;height:5px;border-radius:50%;background:#c8a84b;opacity:0;}
+.cal-day.selected .cal-dot{opacity:1;}
+.cal-viewing-banner{display:none;background:rgba(200,168,75,0.12);border:1px solid rgba(200,168,75,0.3);border-radius:8px;padding:6px 12px;margin:8px 14px 0;text-align:center;font-size:12px;color:#e8c96d;max-width:640px;margin-left:auto;margin-right:auto;}
+.content{max-width:640px;margin:0 auto;padding:16px 14px;}
+.card{background:#fff;border-radius:14px;padding:16px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,0.04);margin-bottom:12px;}
+.card-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.divider{display:flex;align-items:center;gap:8px;margin:16px 0 10px;}
+.divider-line{flex:1;height:1px;background:#ddd8ce;}
+.divider-label{font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-weight:700;}
+.inp{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--navy);background:var(--cream);outline:none;resize:none;}
+.inp:focus{border-color:#1a6b72;}
+.modern-select { appearance: none; -webkit-appearance: none; background: url("data:image/svg+xml;utf8,<svg fill='%236b7a8d' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") no-repeat right 10px center; background-color: var(--cream); border: 1px solid var(--border); border-radius: 10px; padding: 10px 32px 10px 14px; font-size: 13px; font-weight: 500; color: var(--navy); cursor: pointer; transition: all 0.2s; width: 100%; outline: none;}
+.cb{width:20px;height:20px;border-radius:5px;border:2px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn{cursor:pointer;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-family:inherit;}
+.emoji-pick{font-size:22px;cursor:pointer;transition:all 0.15s;opacity:0.3;}
+.emoji-pick.sel{opacity:1;transform:scale(1.3);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:4px 6px;color:var(--muted);font-weight:600;}
+td{padding:10px 6px;border-top:1px solid #ddd8ce;}
+.progress-bar-bg{background:rgba(255,255,255,0.1);border-radius:99px;height:8px;overflow:hidden;}
+.progress-bar{height:100%;border-radius:99px;background:linear-gradient(90deg,#c8a84b,#e8c96d);transition:width 0.4s;width:0%;}
+.tip{margin-top:8px;padding:8px 10px;background:rgba(15,31,61,0.06);border-radius:8px;font-size:12px;color:var(--muted);}
+.counter-btn{width:30px;height:30px;border-radius:8px;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.section-hidden{display:none;}
+.work-warn{font-size:9px;color:#c8a84b;margin-left:4px;}
+.stepper{display:flex;align-items:center;gap:8px;}
+.stepper-val{font-size:15px;font-weight:700;color:var(--navy);min-width:32px;text-align:center;}
+.streak-badge{display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#0f1f3d,#1a6b72);border-radius:10px;padding:8px 12px;margin-bottom:10px;}
+.week-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0ece4;}
+.week-row:last-child{border-bottom:none;}
+.week-day{font-size:11px;font-weight:700;color:var(--muted);width:28px;flex-shrink:0;}
+.week-prayers{display:flex;gap:3px;}
+.wp-dot{width:14px;height:14px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
+.wp-dot.done{background:#1a6b72;color:#fff;}
+.wp-dot.miss{background:#f0ece4;color:#bbb;}
+.week-stat{font-size:11px;color:var(--muted);margin-left:auto;}
+/* prayer time card */
+.pt-window-row{display:grid;grid-template-columns:90px 1fr 1fr;align-items:center;padding:7px 0;border-bottom:1px solid #f5f2ed;}
+.pt-window-row:last-child{border-bottom:none;}
+.pt-window-name{font-size:12px;font-weight:600;}
+.pt-window-time{font-size:11px;color:#1a6b72;font-weight:600;}
+.pt-window-end{font-size:11px;color:#6b7a8d;}
+.pt-section-head{font-size:9px;color:#c8a84b;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin:10px 0 4px;}
+.pt-forbidden-row{display:grid;grid-template-columns:90px 1fr 1fr;align-items:center;padding:5px 0;}
+.forbidden-badge{font-size:9px;font-weight:700;color:#c0392b;background:rgba(192,57,43,0.1);border-radius:4px;padding:1px 5px;}
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;}
+.modal-overlay.hidden{display:none;}
+.modal-sheet{background:#fff;border-radius:20px 20px 0 0;padding:20px 18px 40px;width:100%;max-width:640px;max-height:85vh;overflow-y:auto;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0ece4;}
+.settings-label{font-size:13px;font-weight:600;color:var(--navy);}
+.settings-sub{font-size:11px;color:var(--muted);}
+
+/* ── DARK MODE FIXES ── */
+body.dark-mode { background: #0d1117; color: #e6edf3; }
+body.dark-mode .card { background: #161b22; border-color: #30363d; color: #e6edf3; }
+body.dark-mode .card-title { color: #8b949e; }
+body.dark-mode .text-navy { color: #e6edf3 !important; } /* Solves unreadable text issue */
+
+body.dark-mode .inp { background: #0d1117; border-color: #30363d; color: #e6edf3; }
+body.dark-mode .inp:focus { border-color: #1a6b72; }
+body.dark-mode .modern-select { background-color: #0d1117; border-color: #30363d; color: #e6edf3; background-image: url("data:image/svg+xml;utf8,<svg fill='%238b949e' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>"); }
+body.dark-mode select option { background: #161b22; color: #e6edf3; }
+
+body.dark-mode .book-row { background: #161b22; border-color: #30363d; }
+body.dark-mode .fast-card { background: #161b22; border-color: #30363d; }
+body.dark-mode .btn-counter { background: #21262d; border-color: #30363d; color: #e6edf3; }
+body.dark-mode .btn { background: #21262d !important; color: #e6edf3 !important; border-color: #30363d !important; }
+body.dark-mode .streak-badge { background: linear-gradient(135deg, #161b22, #1a3a3d); }
+body.dark-mode .t-circle circle:first-child { fill: #161b22; stroke: #30363d; }
+
+body.dark-mode #dua-display { background: #161b22 !important; border-color: #30363d !important; }
+body.dark-mode .modal-sheet { background: #161b22; color: #e6edf3; }
+body.dark-mode .settings-label { color: #e6edf3; }
+body.dark-mode .settings-sub { color: #8b949e; }
+body.dark-mode .settings-row { border-color: #30363d; }
+body.dark-mode td { border-color: #30363d; }
+body.dark-mode .week-row { border-color: #30363d; }
+body.dark-mode .wp-dot.miss { background: #30363d; color: #555; }
+body.dark-mode .divider-line { background: #30363d; }
+body.dark-mode .tip { background: rgba(255,255,255,0.05); color: #8b949e; }
+body.dark-mode .pt-window-time, body.dark-mode .pt-window-end { color: #e6edf3; }
+body.dark-mode .cal-day-num { color: #e6edf3; }
+</style>
+</head>
+<body>
+
+<div class="modal-overlay hidden" id="settings-modal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal-sheet">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;" class="text-navy">
+      <span>⚙️ Settings</span>
+      <button onclick="closeSettings()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7a8d;">✕</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">🌙 Dark Mode</div><div class="settings-sub">Easier on the eyes at night</div></div>
+      <div id="dark-toggle" onclick="toggleDarkMode()" style="width:44px;height:24px;border-radius:99px;background:#ddd8ce;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;">
+        <div id="dark-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">Qada Start Date</div><div class="settings-sub">Historical backlog starts from</div></div>
+      <input type="date" class="inp" style="width:145px;" id="qada-start-input" onchange="saveQadaStart(this.value)"/>
+    </div>
+    <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><div class="settings-label">☁️ Cloud Sync</div><div class="settings-sub" id="cloud-sync-sub">Back up data across devices</div></div>
+        <div id="cloud-toggle" onclick="toggleCloudSync()" style="width:44px;height:24px;border-radius:99px;background:#ddd8ce;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;">
+          <div id="cloud-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>
+        </div>
+      </div>
+      <div id="cloud-status" style="font-size:11px;color:var(--muted);"></div>
+      <button id="cloud-sync-now-btn" class="btn text-navy" style="display:none;background:var(--cream);border:1px solid var(--border);width:100%;" onclick="cloudSyncNow()">Sync now</button>
+    </div>
+    <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+      <div class="settings-label">📤 Export Data</div>
+      <button class="btn text-navy" style="background:var(--cream);border:1px solid var(--border);width:100%;" onclick="exportData()">Export JSON</button>
+    </div>
+    <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;border-bottom:none;">
+      <div class="settings-label">📥 Import Data</div>
+      <label style="display:block;width:100%;">
+        <input type="file" accept=".json" id="import-file-input" style="display:none;" onchange="importData(this)"/>
+        <div class="btn text-navy" style="background:var(--cream);border:1px solid var(--border);width:100%;text-align:center;cursor:pointer;">Choose JSON file…</div>
+      </label>
+      <div id="import-status" style="font-size:12px;color:#1e8a4a;display:none;"></div>
+    </div>
+    <div style="text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:#a8adb5;letter-spacing:0.3px;">
+      made with <span style="color:#c0392b;">❤️</span> by <span style="font-weight:600;color:#6b7a8d;">Shihab</span>
+    </div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-ring" style="width:200px;height:200px;top:-50px;right:-50px;"></div>
+  <div class="header-ring" style="width:130px;height:130px;top:-25px;right:-25px;"></div>
+  <div style="max-width:640px;margin:0 auto;position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div class="bismillah">بسم الله الرحمن الرحيم</div>
+        <div class="header-title">Muslim Daily Planner</div>
+        <div class="header-dates">
+          <div class="header-hijri" id="hijri-date"></div>
+          <div style="color:rgba(255,255,255,0.25);font-size:11px;">·</div>
+          <div class="header-bangla" id="bangla-date"></div>
+        </div>
+      </div>
+      <button onclick="openSettings()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);border-radius:8px;padding:6px 10px;font-size:18px;cursor:pointer;margin-top:4px;">⚙️</button>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('daily',this)"><span class="tab-icon">🗓️</span><span class="tab-label">Daily</span></button>
+  <button class="tab" onclick="showTab('salah',this)"><span class="tab-icon">🕌</span><span class="tab-label">Salah</span></button>
+  <button class="tab" onclick="showTab('tasks',this)"><span class="tab-icon">✅</span><span class="tab-label">Tasks</span></button>
+  <button class="tab" onclick="showTab('health',this)"><span class="tab-icon">💪</span><span class="tab-label">Health</span></button>
+  <button class="tab" onclick="showTab('money',this)"><span class="tab-icon">💰</span><span class="tab-label">Money</span></button>
+  <button class="tab" onclick="showTab('reading',this)"><span class="tab-icon">📚</span><span class="tab-label">Reading</span></button>
+</div>
+
+<div class="cal-bar">
+  <div class="cal-bar-inner">
+    <div class="cal-month-row">
+      <button class="cal-nav" onclick="calShiftMonth(-1)">&#8592;</button>
+      <div class="cal-month-label" id="cal-month-label"></div>
+      <button class="cal-today-btn" id="cal-today-btn" onclick="goToToday()" style="display:none;">Today</button>
+      <button class="cal-nav" onclick="calShiftMonth(1)">&#8594;</button>
+    </div>
+    <div class="cal-days-scroll" id="cal-days-scroll"></div>
+  </div>
+</div>
+<div class="cal-viewing-banner" id="cal-viewing-banner"></div>
+
+<div class="content">
+
+<div id="tab-daily">
+  <div class="card" style="border-color:#c8a84b44;box-shadow:0 2px 12px #c8a84b18;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;" id="date-label-today">Today</div>
+        <div style="font-size:20px;font-weight:700;" class="text-navy" id="date-display"></div>
+      </div>
+      <div style="display:flex;gap:6px;" id="day-strip"></div>
+    </div>
+  </div>
+
+  <div class="card" id="ayah-card" style="position:relative;overflow:hidden;border:none;padding:0;background:linear-gradient(135deg,#0f1f3d,#1a6b72);">
+    <div style="position:absolute;top:-20px;right:-10px;font-size:90px;opacity:0.08;line-height:1;">{ }</div>
+    <div style="position:relative;padding:18px 20px;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:#e8c96d;text-transform:uppercase;margin-bottom:12px;">📖 Ayah of the Day</div>
+      <div id="daily-quran-quote"></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><div class="card-title">Mood</div><div style="display:flex;justify-content:space-between;" id="mood-picker"></div></div>
+    <div class="card"><div class="card-title">Weather</div><div style="display:flex;justify-content:space-between;" id="weather-picker"></div></div>
+  </div>
+  <div class="card" style="border-color:#22919b44;"><div class="card-title" style="color:#22919b;">Energy Levels</div><div id="energy-sliders"></div></div>
+  <div class="grid2">
+    <div class="card"><div class="card-title">Daily Reflection</div><textarea class="inp" rows="3" placeholder="How's your day going..." oninput="save('reflection',this.value)" id="f-reflection"></textarea></div>
+    <div class="card"><div class="card-title">Reminder To</div><textarea class="inp" rows="3" placeholder="Don't forget..." oninput="save('reminder',this.value)" id="f-reminder"></textarea></div>
+  </div>
+  <div class="card" style="border-color:#c8a84b44;"><div class="card-title" style="color:#c8a84b;">Alhamdulillah For</div><textarea class="inp" rows="3" placeholder="Today I'm grateful for..." oninput="save('gratitude',this.value)" id="f-gratitude"></textarea></div>
+  <div class="card" style="border-color:#1e8a4a44;"><div class="card-title" style="color:#1e8a4a;">Win of the Day</div><input class="inp" placeholder="One good thing I did today..." oninput="save('win',this.value)" id="f-win"/></div>
+  
+  <div class="card"><div class="card-title">For Tomorrow</div><textarea class="inp" rows="3" placeholder="Plan ahead..." oninput="save('tomorrow',this.value)" id="f-tomorrow"></textarea></div>
+  <div class="divider"><div class="divider-line" style="background:linear-gradient(to right,#c8a84b55,transparent);"></div><span class="divider-label">This Week</span><div class="divider-line" style="background:linear-gradient(to left,#c8a84b55,transparent);"></div></div>
+  <div class="card"><div class="card-title">Weekly Summary</div><div id="weekly-summary"></div></div>
+  <div class="divider"><div class="divider-line" style="background:linear-gradient(to right,#1a6b7255,transparent);"></div><span class="divider-label" style="color:#1a6b72;">This Month</span><div class="divider-line" style="background:linear-gradient(to left,#1a6b7255,transparent);"></div></div>
+  <div class="card" style="border-color:#1a6b7244;"><div class="card-title" style="color:#1a6b72;">Monthly Stats</div><div id="monthly-summary"></div></div>
+  <div style="text-align:center;margin-top:16px;color:var(--muted);font-size:12px;line-height:1.8;">
+    <div style="color:#c8a84b;font-size:16px;margin-bottom:4px;direction:rtl;">﴿ فَإِذَا عَزَمْتَ فَتَوَكَّلْ عَلَى اللَّهِ ﴾</div>
+    "And when you have decided, then rely upon Allah." — Ali 'Imran 3:159
+  </div>
+</div>
+
+<div id="tab-salah" class="section-hidden">
+  <div class="card" style="border-color:#1a6b7244;box-shadow:0 2px 12px #1a6b7218;" id="pt-windows-card">
+    <div class="card-title" style="color:#1a6b72;">🕐 Prayer Time Windows <span style="font-size:9px;font-weight:400;color:#6b7a8d;letter-spacing:0;">📍 Cumilla</span></div>
+    <div id="pt-windows-content"><div style="font-size:12px;color:#6b7a8d;text-align:center;padding:8px;">Loading times…</div></div>
+  </div>
+
+  <div class="streak-badge">
+    <div style="font-size:22px;">🔥</div>
+    <div>
+      <div style="font-size:24px;font-weight:800;color:#e8c96d;line-height:1;" id="streak-num">0</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.6);line-height:1.3;">day streak<br><span style="font-size:9px;opacity:0.7;">all 5 fard prayed</span></div>
+    </div>
+    <div style="margin-left:auto;text-align:right;">
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);">Best</div>
+      <div style="font-size:16px;font-weight:700;color:#e8c96d;" id="streak-best">0</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:#c8a84b44;">
+    <div class="card-title" style="color:#c8a84b;">Today's Salah</div>
+    <div style="overflow-x:auto;">
+      <table><thead><tr><th>Prayer</th><th style="text-align:center;">Fard</th><th style="text-align:center;">Sunnah</th><th style="text-align:center;">On Time</th></tr></thead>
+      <tbody id="salah-tbody"></tbody></table>
+    </div>
+    <div class="tip">💡 Dhuhr & Asr fall during work hours. Find a quiet space or your lunch break.</div>
+  </div>
+
+  <div class="divider"><div class="divider-line" style="background:linear-gradient(to right,#c8a84b55,transparent);"></div><span class="divider-label">Qada Tracker</span><div class="divider-line" style="background:linear-gradient(to left,#c8a84b55,transparent);"></div></div>
+
+  <div class="card" style="background:#0f1f3d;border-color:#c8a84b33;">
+    <div style="color:#e8c96d;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Qada Prayer Debt</div>
+    <div style="font-size:10px;color:rgba(200,168,75,0.6);margin-bottom:8px;" id="qada-auto-note"></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+      <span style="color:rgba(255,255,255,0.6);font-size:12px;">Made up so far</span>
+      <span style="color:#e8c96d;font-weight:700;font-size:14px;" id="qada-count-display"></span>
+    </div>
+    <div class="progress-bar-bg"><div class="progress-bar" id="qada-bar"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:6px;">
+      <span style="color:rgba(255,255,255,0.5);" id="qada-pct"></span>
+      <span style="color:rgba(255,255,255,0.5);" id="qada-remaining"></span>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:rgba(200,168,75,0.7);text-align:center;" id="qada-eta"></div>
+  </div>
+
+  <div class="card" style="border-color:#c8a84b44;">
+    <div class="card-title" style="color:#c8a84b;">Make Up Qada Today</div>
+    <div id="qada-per-prayer"></div>
+    <div class="tip">💡 Missed prayers from past days are auto-detected and added to your debt.</div>
+  </div>
+
+  <div class="card" style="border-color:#1a6b7244;">
+    <div class="card-title" style="color:#1a6b72;">Adhkar</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ddd8ce;">
+      <div><div style="font-size:13px;font-weight:600;" class="text-navy">Morning Adhkar</div><div style="font-size:11px;color:var(--muted);">After Fajr</div></div>
+      <div class="cb" id="cb-morning" style="border-color:#1a6b72;" onclick="toggleCb('adhkar_morning','cb-morning','#1a6b72')"></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;">
+      <div><div style="font-size:13px;font-weight:600;" class="text-navy">Evening Adhkar</div><div style="font-size:11px;color:var(--muted);">After Asr/Maghrib</div></div>
+      <div class="cb" id="cb-evening" style="border-color:#1a6b72;" onclick="toggleCb('adhkar_evening','cb-evening','#1a6b72')"></div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:#c8a84b44;">
+    <div class="card-title" style="color:#c8a84b;">Tasbeeh Counter</div>
+    <div id="tasbeeh-rows"></div>
+    <button class="btn text-navy" style="margin-top:10px;width:100%;background:var(--cream);border:1px solid var(--border);" onclick="resetAllTasbeeh()">Reset All Counts</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Sunnah Fasts</div>
+    <div class="grid2">
+      <div id="fast-mon" class="fast-card" onclick="toggleFast('mon')"><span style="font-size:13px;font-weight:500;" class="text-navy">Monday</span><span id="fast-mon-icon">⬜</span></div>
+      <div id="fast-thu" class="fast-card" onclick="toggleFast('thu')"><span style="font-size:13px;font-weight:500;" class="text-navy">Thursday</span><span id="fast-thu-icon">⬜</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:#1a6b7244;">
+    <div class="card-title" style="color:#1a6b72;">📿 Daily Du'as</div>
+    <div id="dua-select-container" style="margin-bottom:10px;"></div>
+    <div id="dua-display" style="display:none;background:var(--cream);border-radius:10px;padding:12px;border:1px solid var(--border);margin-bottom:10px;">
+      <div id="dua-arabic" class="text-navy" style="font-size:17px;direction:rtl;font-weight:600;line-height:1.8;margin-bottom:6px;"></div>
+      <div id="dua-bangla" style="font-size:12px;color:#1a6b72;font-weight:600;margin-bottom:4px;"></div>
+      <div id="dua-english" style="font-size:12px;color:#6b7a8d;font-style:italic;margin-bottom:6px;"></div>
+      <div id="dua-meaning" class="text-navy" style="font-size:11px;border-top:1px solid #ddd8ce;padding-top:6px;"></div>
+    </div>
+    <div class="card-title" style="color:#6b7a8d;margin-top:4px;">Personal Du'a / Notes</div>
+    <textarea class="inp" rows="3" placeholder="Write your personal du'a or ibadah notes..." oninput="save('dua',this.value)" id="f-dua"></textarea>
+  </div>
+  <div style="text-align:center;margin-top:16px;">
+    <div style="color:#c8a84b;font-size:16px;margin-bottom:6px;line-height:1.8;direction:rtl;">﴿ إِنَّ الصَّلَاةَ تَنْهَىٰ عَنِ الْفَحْشَاءِ وَالْمُنكَرِ ﴾</div>
+    <div style="color:var(--muted);font-size:12px;line-height:1.6;">"Indeed, prayer prohibits immorality and wrongdoing."</div>
+    <div style="color:var(--muted);font-size:11px;margin-top:4px;">— Al-Ankabut 29:45</div>
+  </div>
+</div>
+
+<div id="tab-tasks" class="section-hidden">
+  
+  <div class="card" id="resistance-card" style="position:relative;overflow:hidden;border:none;padding:0;background:linear-gradient(135deg,#0f2818,#0f1f3d);">
+    <div style="position:relative;padding:18px 18px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#5fd08a;text-transform:uppercase;margin-bottom:2px;">🛡️ Resistance</div>
+          <div style="font-size:11px;color:#8ea3b0;">Guard your focus & inner strength</div>
+        </div>
+        <div class="cb" id="cb-resistance" style="width:42px;height:42px;border-radius:50%;border:2px solid #5fd08a88;flex-shrink:0;" onclick="toggleResistance()"></div>
+      </div>
+      <div style="display:flex;gap:22px;margin-top:16px;">
+        <div><div style="font-size:28px;font-weight:800;color:#5fd08a;line-height:1;" id="res-streak">0</div><div style="font-size:10px;color:#8ea3b0;text-transform:uppercase;letter-spacing:.5px;margin-top:3px;">Current 🔥</div></div>
+        <div><div style="font-size:28px;font-weight:800;color:#e8c96d;line-height:1;" id="res-best">0</div><div style="font-size:10px;color:#8ea3b0;text-transform:uppercase;letter-spacing:.5px;margin-top:3px;">Best streak</div></div>
+        <div><div style="font-size:28px;font-weight:800;color:#a9c6c9;line-height:1;" id="res-rate">0%</div><div style="font-size:10px;color:#8ea3b0;text-transform:uppercase;letter-spacing:.5px;margin-top:3px;">30-day rate</div></div>
+      </div>
+      <div style="margin-top:16px;">
+        <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;"><div id="res-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#5fd08a,#1e8a4a);border-radius:3px;transition:width .3s;"></div></div>
+        <div id="res-progress-label" style="font-size:11px;color:#8ea3b0;margin-top:6px;"></div>
+      </div>
+      <div id="res-milestones" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;"></div>
+      <div style="font-size:10px;color:#8ea3b0;text-transform:uppercase;letter-spacing:.5px;margin-top:16px;margin-bottom:6px;">Last 28 days</div>
+      <div id="res-heatmap" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+      <div id="res-insight" style="display:none;margin-top:14px;padding:10px 12px;border-radius:10px;background:rgba(232,201,109,0.08);border:1px solid rgba(232,201,109,0.25);font-size:11px;color:#e8c96d;line-height:1.5;"></div>
+      <div id="res-slip-panel" style="display:none;margin-top:16px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);">
+        <div style="font-size:12px;font-weight:700;color:#e6edf3;margin-bottom:8px;">That's okay — reflect and keep going 🤍</div>
+        <div style="font-size:10px;color:#8ea3b0;margin-bottom:5px;">What triggered it? (optional)</div>
+        <div id="res-trigger-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;"></div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <input id="res-trigger-custom" class="inp" placeholder="Add your own…" style="font-size:11px;padding:6px 8px;background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15);color:#e6edf3;" onkeydown="if(event.key==='Enter')addCustomResTag('trigger')"/>
+          <button onclick="addCustomResTag('trigger')" style="background:rgba(255,255,255,0.1);border:none;color:#c8d4da;border-radius:8px;padding:0 12px;font-size:12px;cursor:pointer;">+</button>
+        </div>
+        <div style="font-size:10px;color:#8ea3b0;margin-bottom:5px;">Next time, try instead:</div>
+        <div id="res-instead-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;"></div>
+        <div style="display:flex;gap:6px;">
+          <input id="res-instead-custom" class="inp" placeholder="Add your own…" style="font-size:11px;padding:6px 8px;background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15);color:#e6edf3;" onkeydown="if(event.key==='Enter')addCustomResTag('instead')"/>
+          <button onclick="addCustomResTag('instead')" style="background:rgba(255,255,255,0.1);border:none;color:#c8d4da;border-radius:8px;padding:0 12px;font-size:12px;cursor:pointer;">+</button>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:10px;">
+        <span onclick="logResSlip()" style="font-size:11px;color:#8ea3b0;text-decoration:underline;cursor:pointer;">Had a slip today? Log it</span>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div style="font-size:11px;font-weight:700;color:#e6edf3;">⏰ High-risk time nudge</div><div style="font-size:10px;color:#8ea3b0;margin-top:1px;">Optional daily reminder</div></div>
+          <input type="time" id="res-reminder-time" class="inp" style="width:110px;font-size:12px;padding:6px 8px;background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15);color:#e6edf3;" onchange="setResReminderTime(this.value)"/>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#8ea3b0;line-height:1.7;">
+        <div style="color:#e8c96d;font-size:14px;margin-bottom:3px;">﴾ وَمَن يَتَّقِ اللَّهَ يَجْعَل لَّهُ مَخْرَجًا ﴿</div>
+        "Whoever is mindful of Allah, He will make a way out for him." — At-Talaq 65:2
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:#1a6b7244;"><div class="card-title" style="color:#1a6b72;">Top 3 Priorities Today</div><div id="priorities-list"></div></div>
+  <div class="divider"><div class="divider-line" style="background:linear-gradient(to right,#c8a84b55,transparent);"></div><span class="divider-label">Daily Schedule</span><div class="divider-line" style="background:linear-gradient(to left,#c8a84b55,transparent);"></div></div>
+  <div id="schedule-blocks"></div>
+  <div class="divider"><div class="divider-line" style="background:linear-gradient(to right,#c8a84b55,transparent);"></div><span class="divider-label">To-Do List</span><div class="divider-line" style="background:linear-gradient(to left,#c8a84b55,transparent);"></div></div>
+  <div class="card" id="todo-list"></div>
+  <div style="text-align:center;margin-top:16px;">
+    <div style="color:#c8a84b;font-size:16px;margin-bottom:6px;line-height:1.8;direction:rtl;">﴿ وَقُلِ اعْمَلُوا فَسَيَرَى اللَّهُ عَمَلَكُمْ وَرَسُولُهُ وَالْمُؤْمِنُونَ ﴾</div>
+    <div style="color:var(--muted);font-size:12px;line-height:1.6;">"And say, 'Work, for Allah will see your deeds, and so will His Messenger and the believers.'"</div>
+    <div style="color:var(--muted);font-size:11px;margin-top:4px;">— At-Tawbah 9:105</div>
+  </div>
+</div>
+
+<div id="tab-health" class="section-hidden">
+  <div class="card" style="border-color:#0f1f3d44;">
+    <div class="card-title text-navy">Sleep</div>
+    <div class="grid2" style="margin-bottom:10px;">
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Slept at</div><input type="time" class="inp" oninput="save('sleepTime',this.value);calcSleepDuration()" id="f-sleepTime"/></div>
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Woke up</div><input type="time" class="inp" oninput="save('wakeTime',this.value);calcSleepDuration()" id="f-wakeTime"/></div>
+    </div>
+    <div id="sleep-duration-display" style="font-size:12px;font-weight:600;margin-bottom:8px;display:none;"></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Restedness</div>
+    <input type="range" min="1" max="5" value="3" id="restedness-slider" oninput="save('restedness',this.value);document.getElementById('restedness-label').textContent=['','😫 Exhausted','😔 Tired','😐 Okay','🙂 Rested','😄 Refreshed'][this.value]" style="width:100%;accent-color:#0f1f3d;"/>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:4px;" id="restedness-label">😐 Okay</div>
+  </div>
+  
+  <div class="card">
+    <div class="card-title">Screen Time Intention</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:13px;color:var(--muted);">Max:</span>
+      <div class="stepper">
+        <button class="counter-btn btn-counter" onclick="adjScreenTime(-0.5)">−</button>
+        <span class="stepper-val text-navy" id="screen-time-val">2</span>
+        <button class="counter-btn" style="background:#1a6b72;color:#fff;" onclick="adjScreenTime(0.5)">+</button>
+      </div>
+      <span style="font-size:13px;color:var(--muted);">hrs</span>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:#22919b44;">
+    <div class="card-title" style="color:#22919b;">Water & Beverages</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;" id="water-drops"></div>
+    <div style="font-size:12px;color:var(--muted);" id="water-label">0 / 8 glasses</div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--muted);">☕ Coffee:</span>
+        <button class="counter-btn btn-counter" onclick="adjCaffeine(-1)">−</button>
+        <span style="font-weight:600;" class="text-navy" id="caffeine-val">0</span>
+        <button class="counter-btn" style="background:#1a6b72;color:#fff;" onclick="adjCaffeine(1)">+</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--muted);">🍵 Tea:</span>
+        <button class="counter-btn btn-counter" onclick="adjTea(-1)">−</button>
+        <span style="font-weight:600;" class="text-navy" id="tea-val">0</span>
+        <button class="counter-btn" style="background:#1a6b72;color:#fff;" onclick="adjTea(1)">+</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card" style="border-color:#1e8a4a44;">
+    <div class="card-title" style="color:#1e8a4a;">Exercise</div>
+    <div style="margin-bottom:8px;"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Workout type</div><input class="inp" placeholder="e.g. Morning run, gym..." oninput="save('workout',this.value)" id="f-workout"/></div>
+    <div class="grid2">
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Minutes</div><input class="inp" type="number" placeholder="mins" oninput="save('exMins',this.value)" id="f-exMins"/></div>
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Steps</div><input class="inp" type="number" placeholder="e.g. 8000" oninput="save('steps',this.value)" id="f-steps"/></div>
+    </div>
+  </div>
+  <div class="card" style="border-color:#c8a84b44;"><div class="card-title" style="color:#c8a84b;">Meal Tracker</div><div id="meal-inputs"></div></div>
+
+  <div class="card">
+    <div class="card-title">BMI Calculator</div>
+    <div class="grid2">
+       <select class="modern-select" id="bmi-gender"><option value="male">Male</option><option value="female">Female</option></select>
+       <input type="number" class="inp" id="bmi-age" placeholder="Age" value="20"/>
+    </div>
+    <div class="grid2" style="margin-top:8px;">
+       <input type="number" class="inp" id="bmi-h" placeholder="Height (cm)"/>
+       <input type="number" class="inp" id="bmi-w" placeholder="Weight (kg)"/>
+    </div>
+    <button class="btn" style="width:100%; margin-top:8px; background:#1a6b72; color:#fff;" onclick="calcBMI()">Calculate</button>
+    <div id="bmi-result" style="margin-top:12px; display:none;"></div>
+  </div>
+  <div style="text-align:center;margin-top:16px;">
+    <div style="color:#c8a84b;font-size:16px;margin-bottom:6px;line-height:1.8;direction:rtl;">﴿ وَكُلُوا وَاشْرَبُوا وَلَا تُسْرِفُوا ۚ إِنَّهُ لَا يُحِبُّ الْمُسْرِفِينَ ﴾</div>
+    <div style="color:var(--muted);font-size:12px;line-height:1.6;">"Eat and drink, but do not be excessive. Indeed, He does not like those who commit excess."</div>
+    <div style="color:var(--muted);font-size:11px;margin-top:4px;">— Al-A'raf 7:31</div>
+  </div>
+</div>
+
+<div id="tab-money" class="section-hidden">
+  <div class="card" style="border-color:#1e8a4a44;">
+    <div class="card-title" style="color:#1e8a4a;">Money In</div>
+    <div id="income-rows"></div>
+    <button class="btn" style="font-size:12px;color:#1e8a4a;background:none;border:1px dashed #1e8a4a;width:100%;margin-top:4px;" onclick="addIncomeRow()">+ Add row</button>
+    <div style="margin-top:8px;text-align:right;font-weight:700;color:#1e8a4a;font-size:14px;" id="total-in">Total in: ৳0</div>
+  </div>
+  <div class="card" style="border-color:#c0392b44;">
+    <div class="card-title" style="color:#c0392b;">Money Out</div>
+    <div id="expense-rows"></div>
+    <button class="btn" style="font-size:12px;color:#c0392b;background:none;border:1px dashed #c0392b;width:100%;margin-top:4px;" onclick="addExpenseRow()">+ Add row</button>
+    <div style="margin-top:8px;text-align:right;font-weight:700;color:#c0392b;font-size:14px;" id="total-out">Total out: ৳0</div>
+  </div>
+  <div class="card" style="border-color:#c8a84b44;">
+    <div class="card-title" style="color:#c8a84b;">🤲 Sadaqah / Charity</div>
+    <div id="sadaqah-rows"></div>
+    <button class="btn" style="font-size:12px;color:#c8a84b;background:none;border:1px dashed #c8a84b;width:100%;margin-top:4px;" onclick="addSadaqahRow()">+ Add row</button>
+    <div style="margin-top:8px;text-align:right;font-weight:700;color:#c8a84b;font-size:14px;" id="total-sadaqah">Given today: ৳0</div>
+  </div>
+  <div class="card" id="balance-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:700;font-size:15px;" class="text-navy">Net Balance</span>
+      <span style="font-weight:800;font-size:20px;" id="balance-val">৳0</span>
+    </div>
+    <div style="text-align:right;margin-top:2px;">
+      <button onclick="resetRunningBalance()" style="background:none;border:none;color:#6b7a8d;font-size:10px;cursor:pointer;text-decoration:underline;padding:2px 0;">Reset balance</button>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">Notes</div><textarea class="inp" rows="4" placeholder="Extra notes..." oninput="save('notes',this.value)" id="f-notes"></textarea></div>
+  <div style="text-align:center;margin-top:16px;">
+    <div style="color:#c8a84b;font-size:16px;margin-bottom:6px;line-height:1.8;direction:rtl;">﴿ يَمْحَقُ اللَّهُ الرِّبَا وَيُرْبِي الصَّدَقَاتِ ﴾</div>
+    <div style="color:var(--muted);font-size:12px;line-height:1.6;">"Allah destroys interest and gives increase for charities."</div>
+    <div style="color:var(--muted);font-size:11px;margin-top:4px;">— Al-Baqarah 2:276</div>
+  </div>
+</div>
+
+<div id="tab-reading" class="section-hidden">
+  <div class="card" style="border-color:#c8a84b44;">
+    <div class="card-title" style="color:#c8a84b;">📖 Quran Reading</div>
+    <div style="display:grid;grid-template-columns:90px 1fr 80px 28px;gap:6px;margin-bottom:6px;">
+      <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">SURAH</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">FROM AYAH</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">TO AYAH</div>
+      <div></div>
+    </div>
+    <div id="quran-rows"></div>
+    <button class="btn" style="font-size:12px;color:#c8a84b;background:none;border:1px dashed #c8a84b;width:100%;margin-top:6px;" onclick="addQuranRow()">+ Add row</button>
+    <div id="kahf-remind-reading" style="font-size:11px;color:#c8a84b;margin-top:8px;display:none;">📅 Today is Friday — don't forget Surah Al-Kahf!</div>
+  </div>
+  <div class="card" style="border-color:#1a6b7244;">
+    <div class="card-title" style="color:#1a6b72;">📜 Hadith Reading</div>
+    <div style="display:grid;grid-template-columns:1fr 90px 28px;gap:6px;margin-bottom:6px;">
+      <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">COLLECTION / BOOK</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">HADITH #</div>
+      <div></div>
+    </div>
+    <div id="hadith-rows"></div>
+    <button class="btn" style="font-size:12px;color:#1a6b72;background:none;border:1px dashed #1a6b72;width:100%;margin-top:6px;" onclick="addHadithRow()">+ Add row</button>
+  </div>
+  <div class="card" style="border-color:#0f1f3d44;">
+    <div class="card-title text-navy">📕 Book Tracker</div>
+    <div id="book-rows"></div>
+    <button class="btn text-navy" style="font-size:12px;background:none;border:1px dashed #0f1f3d44;width:100%;margin-top:6px;" onclick="addBookRow()">+ Add book</button>
+  </div>
+  <div style="text-align:center;margin-top:16px;">
+    <div style="color:#c8a84b;font-size:16px;margin-bottom:6px;line-height:1.8;direction:rtl;">﴿ اقْرَأْ بِاسْمِ رَبِّكَ الَّذِي خَلَقَ ﴾</div>
+    <div style="color:var(--muted);font-size:12px;line-height:1.6;">"Read in the name of your Lord who created."</div>
+    <div style="color:var(--muted);font-size:11px;margin-top:4px;">— Al-Alaq 96:1</div>
+  </div>
+</div>
+
+</div><script>
+'use strict';
+// ── STORAGE ───────────────────────────────────────────────────────
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+function dateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function parseKey(k){ const [y,m,d]=k.split('-').map(Number); return new Date(y,m-1,d); }
+let _prefix='';
+function setStoragePrefix(dk){ _prefix=(dk===dateKey(TODAY))?'':dk+'_'; }
+function save(key,val){ try{localStorage.setItem(_prefix+key,JSON.stringify(val));}catch(e){} cloudQueuePush(); }
+function load(key,def){ try{const v=localStorage.getItem(_prefix+key);return v!==null?JSON.parse(v):def;}catch(e){return def;} }
+function gSave(key,val){ try{localStorage.setItem('g_'+key,JSON.stringify(val));}catch(e){} if(key!=='cloudSyncEnabled') cloudQueuePush(); }
+function gLoad(key,def){ try{const v=localStorage.getItem('g_'+key);return v!==null?JSON.parse(v):def;}catch(e){return def;} }
+
+// ── CLOUD SYNC (Firebase) ───────────────────────────────────────────
+// SETUP: create a free project at https://console.firebase.google.com,
+// enable "Anonymous" sign-in under Authentication > Sign-in method, create
+// a Firestore database (start in production mode), then paste your web
+// app config below. Until FIREBASE_CONFIG.apiKey is filled in, cloud sync
+// stays disabled and the app works exactly as before (localStorage-only).
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBkEbq2V3TsUuor6HeLSNps_4_5ViX-Ar8",
+  authDomain: "muslimplanner-cf383.firebaseapp.com",
+  projectId: "muslimplanner-cf383",
+  storageBucket: "muslimplanner-cf383.firebasestorage.app",
+  messagingSenderId: "122928029171",
+  appId: "1:122928029171:web:bb78614af1fc5fedf44686"
+};
+const CLOUD_CONFIGURED = FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY";
+let cloudDb=null, cloudUser=null, cloudPushTimer=null, cloudReady=false;
+const CLOUD_PUSH_DEBOUNCE_MS = 2500;
+
+function cloudInit(){
+  if(!CLOUD_CONFIGURED) return;
+  if(typeof firebase === 'undefined'){
+    console.error('Firebase SDK did not load (blocked or offline)');
+    setCloudStatus('Couldn\'t load cloud SDK — check internet connection and reload');
+    const t=document.getElementById('cloud-toggle');
+    if(t) t.style.opacity='0.5';
+    return;
+  }
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    cloudDb = firebase.firestore();
+  }catch(e){ console.error('Firebase init failed',e); setCloudStatus('Setup error — see console for details'); return; }
+  const enabled = gLoad('cloudSyncEnabled', false);
+  applyCloudToggleUI(enabled);
+  if(enabled) cloudSignInAndSync();
+}
+
+function cloudSignInAndSync(){
+  setCloudStatus('Connecting…');
+  const timeout = setTimeout(()=>{
+    setCloudStatus('Timed out — check Firebase Auth/Firestore setup (see console)');
+  }, 10000);
+  firebase.auth().signInAnonymously().then(cred=>{
+    cloudUser = cred.user;
+    return cloudPullAndMerge();
+  }).then(()=>{
+    clearTimeout(timeout);
+    cloudReady = true;
+    setCloudStatus('Synced just now');
+  }).catch(err=>{
+    clearTimeout(timeout);
+    console.error('Cloud sync error',err);
+    setCloudStatus('Error: '+(err.code||err.message||'unknown'));
+  });
+}
+
+function setCloudStatus(msg){
+  const el=document.getElementById('cloud-status');
+  if(el) el.textContent = CLOUD_CONFIGURED ? msg : 'Not set up yet — add your Firebase config in the code to enable this.';
+}
+
+function applyCloudToggleUI(on){
+  const t=document.getElementById('cloud-toggle'), th=document.getElementById('cloud-thumb'), btn=document.getElementById('cloud-sync-now-btn');
+  if(!t) return;
+  t.style.background = on ? '#1e8a4a' : '#ddd8ce';
+  th.style.transform = on ? 'translateX(20px)' : 'translateX(0)';
+  if(btn) btn.style.display = on ? 'block' : 'none';
+  if(!CLOUD_CONFIGURED){ setCloudStatus(''); }
+  else if(!on){ setCloudStatus('Off — data stays on this device only'); }
+}
+
+function toggleCloudSync(){
+  if(!CLOUD_CONFIGURED){
+    alert('Cloud sync isn\'t set up yet. See the FIREBASE_CONFIG comment near the top of the script for the 5-minute setup steps.');
+    return;
+  }
+  if(typeof firebase === 'undefined'){
+    alert('Cloud sync SDK couldn\'t load — check your internet connection and reload the app.');
+    return;
+  }
+  const cur = gLoad('cloudSyncEnabled', false);
+  const next = !cur;
+  gSave('cloudSyncEnabled', next);
+  applyCloudToggleUI(next);
+  if(next){
+    if(!cloudDb){ try{ firebase.initializeApp(FIREBASE_CONFIG); }catch(e){} cloudDb = firebase.firestore(); }
+    cloudSignInAndSync();
+  }
+  else { cloudReady=false; setCloudStatus('Off — data stays on this device only'); }
+}
+
+function cloudSyncNow(){
+  if(!cloudReady){ cloudSignInAndSync(); return; }
+  setCloudStatus('Syncing…');
+  cloudPushAll().then(()=>setCloudStatus('Synced just now')).catch(()=>setCloudStatus('Sync error — check connection'));
+}
+
+// Collect every localStorage key into one snapshot document.
+function cloudCollectSnapshot(){
+  const snap={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    snap[k]=localStorage.getItem(k);
+  }
+  return snap;
+}
+
+function cloudPushAll(){
+  if(!cloudDb || !cloudUser) return Promise.resolve();
+  const snap=cloudCollectSnapshot();
+  return cloudDb.collection('planner').doc(cloudUser.uid).set({
+    data: snap,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+// Debounced push, called from save()/gSave() on every local write.
+function cloudQueuePush(){
+  if(!CLOUD_CONFIGURED || !gLoad('cloudSyncEnabled',false) || !cloudReady) return;
+  if(cloudPushTimer) clearTimeout(cloudPushTimer);
+  cloudPushTimer=setTimeout(()=>{
+    setCloudStatus('Syncing…');
+    cloudPushAll().then(()=>setCloudStatus('Synced just now')).catch(()=>setCloudStatus('Sync error — check connection'));
+  }, CLOUD_PUSH_DEBOUNCE_MS);
+}
+
+// Pull the cloud snapshot once at sign-in and merge it into localStorage.
+// Cloud wins for keys that exist there (first-time pull on a new device);
+// if this device already has local data and the cloud doc is empty, push
+// local up instead so nothing gets wiped.
+function cloudPullAndMerge(){
+  if(!cloudDb || !cloudUser) return Promise.resolve();
+  const dkAtPullStart = selectedDateKey;
+  return cloudDb.collection('planner').doc(cloudUser.uid).get().then(doc=>{
+    if(!doc.exists || !doc.data().data || Object.keys(doc.data().data).length===0){
+      return cloudPushAll();
+    }
+    const remote=doc.data().data;
+    Object.keys(remote).forEach(k=>{
+      try{ localStorage.setItem(k, remote[k]); }catch(e){}
+    });
+    return Promise.resolve();
+  }).then(()=>{
+    migrateDailyData();
+    // Only redraw if the user hasn't navigated to a different date while
+    // this pull was in flight — avoids yanking the page mid-navigation.
+    if(selectedDateKey === dkAtPullStart){
+      setStoragePrefix(selectedDateKey);
+      reloadAllForDate();
+      renderCalBar();
+    }
+  });
+}
+
+// ── DATE-ROLLOVER MIGRATION ─────────────────────────────────────────
+// "Today" is stored with no date prefix for convenience. If the app wasn't
+// opened again until a later day, that un-prefixed data actually belongs to
+// the last day it was opened, not the new "today" — so we archive it under
+// its real date before anything else reads or writes today's blank keys.
+const DAILY_KEYS = ['activeTasbeeh','adhkar_evening','adhkar_morning','caffeine','dhikr','dhikrTarget','dua','exMins','expenses','fast_mon','fast_thu','gratitude','income','meals','mood','notes','priorities','reflection','reminder','resistance','resTriggers','restedness','sadaqah','salahData','scheduleRows','screenTime','sleepTime','steps','tea','todayQada','todos','tomorrow','wakeTime','water','weather','win','workout','energyMorn','energyPost','energyNight'];
+function migrateDailyData(){
+  const todayKey=dateKey(TODAY);
+  const lastKey=gLoad('lastOpenDate',todayKey);
+  if(lastKey!==todayKey){
+    // Fold the last-open day's net (income - expenses) into the permanent running balance
+    // before that day's data gets archived under its own date key.
+    try{
+      const incRaw=localStorage.getItem('income'); const inc=incRaw?JSON.parse(incRaw):[];
+      const expRaw=localStorage.getItem('expenses'); const exp=expRaw?JSON.parse(expRaw):[];
+      const net=(inc||[]).reduce((a,r)=>a+(+r.amt||0),0) - (exp||[]).reduce((a,r)=>a+(+r.amt||0),0);
+      if(net!==0){ gSave('runningBalance', gLoad('runningBalance',0)+net); }
+    }catch(e){}
+    DAILY_KEYS.forEach(k=>{
+      try{
+        const raw=localStorage.getItem(k);
+        if(raw!==null){ localStorage.setItem(lastKey+'_'+k,raw); localStorage.removeItem(k); }
+      }catch(e){}
+    });
+  }
+  gSave('lastOpenDate',todayKey);
+}
+
+// ── EXPORT/IMPORT ─────────────────────────────────────────────────
+function exportData(){ const d={}; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); try{d[k]=JSON.parse(localStorage.getItem(k));}catch(e){d[k]=localStorage.getItem(k);} } const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`planner-${dateKey(new Date())}.json`; a.click(); URL.revokeObjectURL(url); }
+function importData(input){ const f=input.files[0]; if(!f) return; const r=new FileReader(); r.onload=e=>{ try{ const d=JSON.parse(e.target.result); Object.entries(d).forEach(([k,v])=>{ try{localStorage.setItem(k,JSON.stringify(v));}catch(err){} }); const s=document.getElementById('import-status'); s.textContent='✅ Imported! Reloading…'; s.style.display='block'; setTimeout(()=>location.reload(),1200); }catch(err){alert('Import failed: invalid JSON.');} }; r.readAsText(f); }
+
+// ── SETTINGS ──────────────────────────────────────────────────────
+function openSettings(){ document.getElementById('settings-modal').classList.remove('hidden'); document.getElementById('qada-start-input').value=gLoad('qadaStartDate','2016-12-18'); applyDarkModeToggleUI(); applyCloudToggleUI(gLoad('cloudSyncEnabled',false)); }
+function closeSettings(){ document.getElementById('settings-modal').classList.add('hidden'); }
+function saveQadaStart(val){ gSave('qadaStartDate',val); gSave('qadaDebtCache',null); processQadaAutoTracking(); updateQadaDisplay(); }
+function toggleDarkMode(){ const dm=!gLoad('darkMode',false); gSave('darkMode',dm); applyDarkMode(dm); applyDarkModeToggleUI(); }
+function applyDarkMode(dm){ document.body.classList.toggle('dark-mode',dm); }
+function applyDarkModeToggleUI(){ const dm=gLoad('darkMode',false); const tog=document.getElementById('dark-toggle'); const thumb=document.getElementById('dark-thumb'); if(tog) tog.style.background=dm?'#1a6b72':'#ddd8ce'; if(thumb) thumb.style.transform=dm?'translateX(20px)':'translateX(0)'; }
+
+// ── AYAH OF THE DAY ──────────────────────────────────────────────
+const Q_QUOTES = [
+{text:"Allah does not burden any soul beyond what it can bear.",ref:"Al-Baqarah 2 : 286"},
+{text:"Remember Me, and I will remember you.",ref:"Al-Baqarah 2 : 152"},
+{text:"Seek help through patience and prayer.",ref:"Al-Baqarah 2 : 153"},
+{text:"Allah is with those who are patient.",ref:"Al-Baqarah 2 : 153"},
+{text:"It may be that you dislike something which is good for you.",ref:"Al-Baqarah 2 : 216"},
+{text:"Allah is the ally of those who believe.",ref:"Al-Baqarah 2 : 257"},
+{text:"There is no compulsion in religion.",ref:"Al-Baqarah 2 : 256"},
+{text:"Allah's throne extends over the heavens and the earth, and He never tires of preserving them.",ref:"Al-Baqarah 2 : 255"},
+{text:"Whoever does an atom's weight of good will see it.",ref:"Az-Zalzalah 99 : 7"},
+{text:"Whoever does an atom's weight of evil will see it too.",ref:"Az-Zalzalah 99 : 8"},
+{text:"If you are grateful, I will surely increase you.",ref:"Ibrahim 14 : 7"},
+{text:"Call upon Me and I will answer you.",ref:"Ghafir 40 : 60"},
+{text:"Indeed, with hardship comes ease.",ref:"Ash-Sharh 94 : 6"},
+{text:"Whoever relies upon Allah, He is enough for him.",ref:"At-Talaq 65 : 3"},
+{text:"Allah found you lost and guided you.",ref:"Ad-Duhaa 93 : 7"},
+{text:"My mercy encompasses all things.",ref:"Al-A'raf 7 : 156"},
+{text:"Do not despair of the mercy of Allah.",ref:"Az-Zumar 39 : 53"},
+{text:"Indeed, Allah forgives all sins.",ref:"Az-Zumar 39 : 53"},
+{text:"Your Lord has not forsaken you, nor is He displeased.",ref:"Ad-Duhaa 93 : 3"},
+{text:"The next life is better for you than this one.",ref:"Ad-Duhaa 93 : 4"},
+{text:"So give good tidings to the patient.",ref:"Al-Baqarah 2 : 155"},
+{text:"Those who say, when struck by hardship, 'To Allah we belong and to Him we return.'",ref:"Al-Baqarah 2 : 156"},
+{text:"Verily prayer restrains one from indecency and wrongdoing.",ref:"Al-Ankabut 29 : 45"},
+{text:"The remembrance of Allah is the greatest thing.",ref:"Al-Ankabut 29 : 45"},
+{text:"Speak good to people.",ref:"Al-Baqarah 2 : 83"},
+{text:"Lower your voice, for the ugliest of voices is the braying of a donkey.",ref:"Luqman 31 : 19"},
+{text:"Walk on the earth with humility.",ref:"Al-Furqan 25 : 63"},
+{text:"The servants of the Most Merciful are those who walk gently.",ref:"Al-Furqan 25 : 63"},
+{text:"Do not turn your cheek from people in contempt, nor walk arrogantly.",ref:"Luqman 31 : 18"},
+{text:"Allah does not love those who are arrogant and boastful.",ref:"Luqman 31 : 18"},
+{text:"Establish prayer for My remembrance.",ref:"Ta-Ha 20 : 14"},
+{text:"My Lord, expand my chest for me and ease my task.",ref:"Ta-Ha 20 : 25-26"},
+{text:"Say: My Lord, increase me in knowledge.",ref:"Ta-Ha 20 : 114"},
+{text:"Read, in the name of your Lord who created.",ref:"Al-Alaq 96 : 1"},
+{text:"He taught man that which he knew not.",ref:"Al-Alaq 96 : 5"},
+{text:"By time, indeed mankind is in loss.",ref:"Al-Asr 103 : 1-2"},
+{text:"Except those who believe, do good, and counsel one another to truth and patience.",ref:"Al-Asr 103 : 3"},
+{text:"So woe to those who pray but are heedless of their prayer.",ref:"Al-Ma'un 107 : 4-5"},
+{text:"Have you seen the one who denies the religion? That is the one who repels the orphan.",ref:"Al-Ma'un 107 : 1-2"},
+{text:"And feeds not the poor.",ref:"Al-Ma'un 107 : 3"},
+{text:"Whoever saves a life, it is as if he saved all of humanity.",ref:"Al-Ma'idah 5 : 32"},
+{text:"Cooperate in righteousness and piety, not in sin and aggression.",ref:"Al-Ma'idah 5 : 2"},
+{text:"O you who believe, be persistently just, witnesses for Allah.",ref:"An-Nisa 4 : 135"},
+{text:"Do not let hatred of a people prevent you from being just.",ref:"Al-Ma'idah 5 : 8"},
+{text:"Justice is closer to righteousness.",ref:"Al-Ma'idah 5 : 8"},
+{text:"O mankind, We created you from a male and female and made you peoples and tribes so you may know one another.",ref:"Al-Hujurat 49 : 13"},
+{text:"The most noble of you in Allah's sight is the most righteous.",ref:"Al-Hujurat 49 : 13"},
+{text:"Let not a people ridicule another people; they may be better than them.",ref:"Al-Hujurat 49 : 11"},
+{text:"Avoid much suspicion; some suspicion is sin.",ref:"Al-Hujurat 49 : 12"},
+{text:"Do not spy on one another, nor backbite one another.",ref:"Al-Hujurat 49 : 12"},
+{text:"If two parties of believers fight, make peace between them.",ref:"Al-Hujurat 49 : 9"},
+{text:"The believers are but brothers, so make peace between your brothers.",ref:"Al-Hujurat 49 : 10"},
+{text:"Your Lord has decreed that you worship none but Him, and be good to parents.",ref:"Al-Isra 17 : 23"},
+{text:"Do not say to them so much as 'uff', and do not repel them.",ref:"Al-Isra 17 : 23"},
+{text:"Speak to them a noble word.",ref:"Al-Isra 17 : 23"},
+{text:"Lower to them the wing of humility out of mercy.",ref:"Al-Isra 17 : 24"},
+{text:"Say: My Lord, have mercy upon them as they raised me when I was small.",ref:"Al-Isra 17 : 24"},
+{text:"Give the relative his right, and the poor, and the traveler, and do not squander wastefully.",ref:"Al-Isra 17 : 26"},
+{text:"Indeed the wasteful are brothers of the devils.",ref:"Al-Isra 17 : 27"},
+{text:"Do not make your hand shackled to your neck, nor extend it fully.",ref:"Al-Isra 17 : 29"},
+{text:"Do not kill your children for fear of poverty; We provide for them and for you.",ref:"Al-Isra 17 : 31"},
+{text:"Do not approach unlawful sexual relations; it is an indecency and an evil way.",ref:"Al-Isra 17 : 32"},
+{text:"Fulfil the covenant; the covenant will be questioned about.",ref:"Al-Isra 17 : 34"},
+{text:"Give full measure when you measure, and weigh with an even balance.",ref:"Al-Isra 17 : 35"},
+{text:"Do not pursue that which you have no knowledge of.",ref:"Al-Isra 17 : 36"},
+{text:"Do not walk upon the earth exultantly.",ref:"Al-Isra 17 : 37"},
+{text:"The evil of all that is disliked by your Lord.",ref:"Al-Isra 17 : 38"},
+{text:"So remind, for reminders benefit the believers.",ref:"Adh-Dhariyat 51 : 55"},
+{text:"I did not create jinn and mankind except to worship Me.",ref:"Adh-Dhariyat 51 : 56"},
+{text:"Indeed Allah is the Provider, the Possessor of Strength.",ref:"Adh-Dhariyat 51 : 58"},
+{text:"And in the heavens is your provision and whatever you are promised.",ref:"Adh-Dhariyat 51 : 22"},
+{text:"Whoever comes with a good deed will have better than it.",ref:"An-Naml 27 : 89"},
+{text:"Whoever comes with an evil deed will be cast down on their faces.",ref:"An-Naml 27 : 90"},
+{text:"My Lord, enable me to be grateful for Your favor.",ref:"An-Naml 27 : 19"},
+{text:"Verily prayer, my rites, my living, and my dying are for Allah, Lord of the worlds.",ref:"Al-An'am 6 : 162"},
+{text:"No bearer of burdens will bear the burden of another.",ref:"Al-An'am 6 : 164"},
+{text:"With Him are the keys of the unseen; none knows them except Him.",ref:"Al-An'am 6 : 59"},
+{text:"Not a leaf falls but that He knows it.",ref:"Al-An'am 6 : 59"},
+{text:"This is My straight path, so follow it.",ref:"Al-An'am 6 : 153"},
+{text:"Do not follow other ways that will separate you from His way.",ref:"Al-An'am 6 : 153"},
+{text:"Do not insult those they worship besides Allah, lest they insult Allah out of hostility.",ref:"Al-An'am 6 : 108"},
+{text:"Allah does not change the condition of a people until they change what is in themselves.",ref:"Ar-Ra'd 13 : 11"},
+{text:"Verily, in the remembrance of Allah do hearts find rest.",ref:"Ar-Ra'd 13 : 28"},
+{text:"Those who believe and do righteous deeds, joy is for them and a good return.",ref:"Ar-Ra'd 13 : 29"},
+{text:"Repel evil with what is better, and your enemy will become like a close friend.",ref:"Fussilat 41 : 34"},
+{text:"None will be granted this except those who are patient.",ref:"Fussilat 41 : 35"},
+{text:"Allah wants ease for you, not hardship.",ref:"Al-Baqarah 2 : 185"},
+{text:"When My servants ask you about Me, indeed I am near.",ref:"Al-Baqarah 2 : 186"},
+{text:"I respond to the call of the caller when he calls upon Me.",ref:"Al-Baqarah 2 : 186"},
+{text:"Our Lord, do not impose blame upon us if we forget or err.",ref:"Al-Baqarah 2 : 286"},
+{text:"Our Lord, do not lay upon us a burden like that You laid on those before us.",ref:"Al-Baqarah 2 : 286"},
+{text:"Our Lord, pardon us, forgive us, have mercy on us; You are our protector.",ref:"Al-Baqarah 2 : 286"},
+{text:"And of His signs is that He created for you mates that you may find tranquility in them.",ref:"Ar-Rum 30 : 21"},
+{text:"And He placed between you affection and mercy.",ref:"Ar-Rum 30 : 21"},
+{text:"Among His signs is the creation of the heavens and earth and the diversity of your languages and colors.",ref:"Ar-Rum 30 : 22"},
+{text:"So be patient; the promise of Allah is truth.",ref:"Ar-Rum 30 : 60"},
+{text:"Corruption has appeared on land and sea because of what people's hands have earned.",ref:"Ar-Rum 30 : 41"},
+{text:"Have you not seen that Allah sends down rain from the sky, and the earth becomes green?",ref:"Al-Hajj 22 : 63"},
+{text:"To Allah belongs whatever is in the heavens and whatever is on the earth.",ref:"Al-Hajj 22 : 64"},
+{text:"Allah is Gentle and Aware of His servants.",ref:"Al-Hajj 22 : 63"},
+{text:"Indeed those who believe and do righteous deeds, Allah will admit into gardens.",ref:"Al-Hajj 22 : 14"},
+{text:"Allah defends those who believe.",ref:"Al-Hajj 22 : 38"},
+{text:"Permission is given to those who fight because they have been wronged.",ref:"Al-Hajj 22 : 39"},
+{text:"Indeed, the successful believers are those who are humble in their prayer.",ref:"Al-Mu'minun 23 : 1-2"},
+{text:"Those who turn away from ill speech.",ref:"Al-Mu'minun 23 : 3"},
+{text:"Those who are observant of trusts and promises.",ref:"Al-Mu'minun 23 : 8"},
+{text:"Those who carefully maintain their prayers, they are the inheritors of Paradise.",ref:"Al-Mu'minun 23 : 9-11"},
+{text:"We created man from an extract of clay.",ref:"Al-Mu'minun 23 : 12"},
+{text:"Say: My Lord, forgive and have mercy, You are the best of the merciful.",ref:"Al-Mu'minun 23 : 118"},
+{text:"Allah is the Light of the heavens and the earth.",ref:"An-Nur 24 : 35"},
+{text:"Do not enter houses other than your own until you ask permission.",ref:"An-Nur 24 : 27"},
+{text:"Tell believing men to lower their gaze and guard their modesty.",ref:"An-Nur 24 : 30"},
+{text:"Tell believing women to lower their gaze and guard their modesty.",ref:"An-Nur 24 : 31"},
+{text:"Marry the unmarried among you; if they are poor, Allah will enrich them from His bounty.",ref:"An-Nur 24 : 32"},
+{text:"Let those who cannot find means to marry keep chaste until Allah enriches them.",ref:"An-Nur 24 : 33"},
+{text:"Do not force your servants into wrongdoing seeking worldly gain.",ref:"An-Nur 24 : 33"},
+{text:"Those who avoid major sins, We shall remit their lesser sins.",ref:"An-Nisa 4 : 31"},
+{text:"Men and women each have rights and responsibilities toward one another.",ref:"An-Nisa 4 : 34"},
+{text:"Do good to parents, relatives, orphans, the needy, and neighbours.",ref:"An-Nisa 4 : 36"},
+{text:"Allah does not like those who are self-deluding and boastful.",ref:"An-Nisa 4 : 36"},
+{text:"Indeed Allah orders justice and good conduct.",ref:"An-Nahl 16 : 90"},
+{text:"He forbids immorality, bad conduct, and oppression.",ref:"An-Nahl 16 : 90"},
+{text:"He admonishes you that you may take heed.",ref:"An-Nahl 16 : 90"},
+{text:"Whoever does righteousness, male or female, while a believer, We will give him a good life.",ref:"An-Nahl 16 : 97"},
+{text:"Call to the way of your Lord with wisdom and good instruction.",ref:"An-Nahl 16 : 125"},
+{text:"Argue with them in the way that is best.",ref:"An-Nahl 16 : 125"},
+{text:"If you punish, punish with the equivalent, but if you are patient, it is better.",ref:"An-Nahl 16 : 126"},
+{text:"Be patient; your patience is only through Allah.",ref:"An-Nahl 16 : 127"},
+{text:"Indeed Allah is with those who fear Him and do good.",ref:"An-Nahl 16 : 128"},
+{text:"Verily, this Quran guides to that which is most upright.",ref:"Al-Isra 17 : 9"},
+{text:"It gives good tidings to the believers who do righteous deeds that they will have a great reward.",ref:"Al-Isra 17 : 9"},
+{text:"Say: If the sea were ink for the words of my Lord, the sea would be exhausted before His words are.",ref:"Al-Kahf 18 : 109"},
+{text:"Whoever hopes for the meeting with his Lord, let him do righteous work.",ref:"Al-Kahf 18 : 110"},
+{text:"Wealth and children are the adornment of worldly life, but righteous deeds are better in reward.",ref:"Al-Kahf 18 : 46"},
+{text:"We placed a barrier before them and a barrier behind them, so they cannot see.",ref:"Ya-Sin 36 : 9"},
+{text:"The sun cannot overtake the moon, nor does the night outstrip the day; each floats in an orbit.",ref:"Ya-Sin 36 : 40"},
+{text:"Peace, a word from a Merciful Lord.",ref:"Ya-Sin 36 : 58"},
+{text:"This is the day you were promised.",ref:"Ya-Sin 36 : 52"},
+{text:"So exalted is He in whose hand is the dominion of all things.",ref:"Ya-Sin 36 : 83"},
+{text:"Truly, He is Most Forgiving, Most Loving.",ref:"Al-Buruj 85 : 14"},
+{text:"By the soul and He who proportioned it, and inspired it with discernment of its wickedness and its righteousness.",ref:"Ash-Shams 91 : 7-8"},
+{text:"He has succeeded who purifies it, and he has failed who instills it with corruption.",ref:"Ash-Shams 91 : 9-10"},
+{text:"Indeed We have created man in the best of forms.",ref:"At-Tin 95 : 4"},
+{text:"Then We return him to the lowest of the low, except those who believe and do righteous deeds.",ref:"At-Tin 95 : 5-6"},
+{text:"Is not Allah the most just of judges?",ref:"At-Tin 95 : 8"},
+{text:"He who created death and life to test which of you is best in deed.",ref:"Al-Mulk 67 : 2"},
+{text:"He created seven heavens in layers, you will not see any inconsistency in creation.",ref:"Al-Mulk 67 : 3"},
+{text:"It is He who made the earth tame for you, so walk among its slopes and eat of His provision.",ref:"Al-Mulk 67 : 15"},
+{text:"Say: It is He who created you, and made for you hearing, sight, and hearts.",ref:"Al-Mulk 67 : 23"},
+{text:"Little is it that you give thanks.",ref:"Al-Mulk 67 : 23"},
+{text:"Have they not seen the birds above them spreading their wings and folding them in?",ref:"Al-Mulk 67 : 19"},
+{text:"None holds them up except the Most Merciful.",ref:"Al-Mulk 67 : 19"},
+{text:"O you who wraps himself, arise and warn.",ref:"Al-Muddaththir 74 : 1-2"},
+{text:"And your Lord magnify.",ref:"Al-Muddaththir 74 : 3"},
+{text:"And purify your garments.",ref:"Al-Muddaththir 74 : 4"},
+{text:"Every soul, for what it has earned, will be held in pledge.",ref:"Al-Muddaththir 74 : 38"},
+{text:"Verily man is ungrateful to his Lord, and he bears witness to it himself.",ref:"Al-Adiyat 100 : 6-7"},
+{text:"And truly he is intense in his love of wealth.",ref:"Al-Adiyat 100 : 8"},
+{text:"Does he not know when what is in the graves is scattered forth?",ref:"Al-Adiyat 100 : 9"},
+{text:"Indeed, mankind was created anxious.",ref:"Al-Ma'arij 70 : 19"},
+{text:"Except those who pray, and are constant in their prayer.",ref:"Al-Ma'arij 70 : 22-23"},
+{text:"And in whose wealth there is a known right for the beggar and the deprived.",ref:"Al-Ma'arij 70 : 24-25"},
+{text:"Those who are true to their trusts and their promises.",ref:"Al-Ma'arij 70 : 32"},
+{text:"So be patient with gracious patience.",ref:"Al-Ma'arij 70 : 5"},
+{text:"They ask you concerning the soul; say the soul is of the affair of my Lord.",ref:"Al-Isra 17 : 85"},
+{text:"You have not been given of knowledge except a little.",ref:"Al-Isra 17 : 85"},
+{text:"Say, if mankind and jinn gathered to produce the like of this Quran, they could not.",ref:"Al-Isra 17 : 88"},
+{text:"We have certainly diversified for people in this Quran every kind of example.",ref:"Al-Isra 17 : 89"},
+{text:"And We send down of the Quran that which is healing and mercy for the believers.",ref:"Al-Isra 17 : 82"},
+{text:"Say: Every soul acts according to its disposition, and your Lord knows who is best guided.",ref:"Al-Isra 17 : 84"},
+{text:"Let there be among you a group calling to good, enjoining right and forbidding wrong.",ref:"Aal-e-Imran 3 : 104"},
+{text:"You are the best nation produced for mankind, enjoining right and forbidding wrong.",ref:"Aal-e-Imran 3 : 110"},
+{text:"Hold firmly to the rope of Allah together and do not become divided.",ref:"Aal-e-Imran 3 : 103"},
+{text:"Remember Allah's favor upon you when you were enemies and He brought your hearts together.",ref:"Aal-e-Imran 3 : 103"},
+{text:"Say: If you love Allah, then follow me; Allah will love you and forgive your sins.",ref:"Aal-e-Imran 3 : 31"},
+{text:"Those who spend in ease and hardship, restrain anger, and pardon people; Allah loves the doers of good.",ref:"Aal-e-Imran 3 : 134"},
+{text:"O you who believe, be patient, endure, and remain stationed; fear Allah so you may succeed.",ref:"Aal-e-Imran 3 : 200"},
+{text:"Every soul will taste death, and you will only be given your full reward on Judgement Day.",ref:"Aal-e-Imran 3 : 185"},
+{text:"The worldly life is but the enjoyment of delusion.",ref:"Aal-e-Imran 3 : 185"},
+{text:"Do not weaken and do not grieve; you will be superior if you are believers.",ref:"Aal-e-Imran 3 : 139"},
+{text:"So did they not travel through the earth and observe how was the end of those before them?",ref:"Yusuf 12 : 109"},
+{text:"Verily, with My Lord's mercy the soul is inclined to evil, except one whom my Lord has mercy on.",ref:"Yusuf 12 : 53"},
+{text:"Indeed my Lord is Subtle in what He wills; He is the Knowing, the Wise.",ref:"Yusuf 12 : 100"},
+{text:"My father, I saw eleven stars and the sun and the moon prostrating to me.",ref:"Yusuf 12 : 4"},
+{text:"O my sons, do not despair of relief from Allah.",ref:"Yusuf 12 : 87"},
+{text:"None despairs of relief from Allah except the disbelieving people.",ref:"Yusuf 12 : 87"},
+{text:"So patience is most fitting; Allah is the one sought for help.",ref:"Yusuf 12 : 18"},
+{text:"This day no blame will there be upon you; Allah will forgive you, He is the Most Merciful.",ref:"Yusuf 12 : 92"},
+{text:"Indeed We revealed the Quran in the Night of Decree.",ref:"Al-Qadr 97 : 1"},
+{text:"The Night of Decree is better than a thousand months.",ref:"Al-Qadr 97 : 3"},
+{text:"Peace it is until the emergence of dawn.",ref:"Al-Qadr 97 : 5"},
+{text:"We have certainly created man in hardship.",ref:"Al-Balad 90 : 4"},
+{text:"Have We not made for him two eyes, a tongue, and two lips?",ref:"Al-Balad 90 : 8-9"},
+{text:"And guided him to the two ways?",ref:"Al-Balad 90 : 10"},
+{text:"Then he is among those who believe, enjoin patience and enjoin compassion.",ref:"Al-Balad 90 : 17"},
+{text:"Consider the fig and the olive.",ref:"At-Tin 95 : 1"},
+{text:"And this secure city.",ref:"At-Tin 95 : 3"},
+{text:"The one who follows guidance, follows it only for the benefit of his own soul.",ref:"Yunus 10 : 108"},
+{text:"Whoever strays only strays to his own detriment.",ref:"Yunus 10 : 108"},
+{text:"For every nation is a messenger; when their messenger comes, the matter is judged with justice.",ref:"Yunus 10 : 47"},
+{text:"Unquestionably, the allies of Allah will have no fear, nor will they grieve.",ref:"Yunus 10 : 62"},
+{text:"Those who believed and were fearful of Allah.",ref:"Yunus 10 : 63"},
+{text:"For them are good tidings in worldly life and in the Hereafter.",ref:"Yunus 10 : 64"},
+{text:"Say: In the bounty of Allah and in His mercy, let them rejoice; it is better than what they accumulate.",ref:"Yunus 10 : 58"},
+{text:"O mankind, there has come to you a lesson from your Lord and healing for what is in the hearts.",ref:"Yunus 10 : 57"},
+{text:"Guidance and mercy for the believers.",ref:"Yunus 10 : 57"},
+{text:"Allah invites to the abode of peace.",ref:"Yunus 10 : 25"},
+{text:"The likeness of worldly life is like rain We send down from the sky.",ref:"Yunus 10 : 24"},
+{text:"Say: Praise be to Allah, and peace upon His servants whom He has chosen.",ref:"An-Naml 27 : 59"},
+{text:"It is He who produces the living from the dead and the dead from the living.",ref:"Ar-Rum 30 : 19"},
+{text:"He gives life to the earth after its lifelessness.",ref:"Ar-Rum 30 : 19"},
+{text:"Verily in that are signs for a people who reflect.",ref:"Ar-Rum 30 : 21"},
+{text:"And He is the one who sends the winds as good tidings before His mercy.",ref:"Al-A'raf 7 : 57"},
+{text:"Call upon your Lord in humility and privately; He does not like transgressors.",ref:"Al-A'raf 7 : 55"},
+{text:"Indeed, the mercy of Allah is near to the doers of good.",ref:"Al-A'raf 7 : 56"},
+{text:"Take what is given freely, enjoin what is good, and turn away from the ignorant.",ref:"Al-A'raf 7 : 199"},
+{text:"If an evil suggestion from Satan touches you, seek refuge in Allah.",ref:"Al-A'raf 7 : 200"},
+{text:"And whoever strives, strives only for himself; Allah is free of need of the worlds.",ref:"Al-Ankabut 29 : 6"},
+{text:"Those who strive for Us, We will surely guide them to Our ways.",ref:"Al-Ankabut 29 : 69"},
+{text:"Indeed Allah is with the doers of good.",ref:"Al-Ankabut 29 : 69"},
+{text:"Do people think they will be left alone because they say, 'We believe,' and not be tested?",ref:"Al-Ankabut 29 : 2"},
+{text:"We have certainly tested those before them, and Allah will surely make evident the truthful.",ref:"Al-Ankabut 29 : 3"},
+{text:"Whoever is patient and forgives, that is a matter of steadfast will.",ref:"Ash-Shura 42 : 43"},
+{text:"The reward for evil is its equivalent, but whoever pardons and reforms, his reward is with Allah.",ref:"Ash-Shura 42 : 40"},
+{text:"Whatever thing you have been given is but a passing enjoyment of worldly life.",ref:"Ash-Shura 42 : 36"},
+{text:"What is with Allah is better and more lasting for those who believe and rely upon their Lord.",ref:"Ash-Shura 42 : 36"},
+{text:"Those who avoid major sins and immoralities, and forgive when angered.",ref:"Ash-Shura 42 : 37"},
+{text:"Those who respond to their Lord and establish prayer, and conduct affairs by mutual consultation.",ref:"Ash-Shura 42 : 38"},
+{text:"Say: I do not ask you for it any payment except love for my relatives.",ref:"Ash-Shura 42 : 23"},
+{text:"Nothing is like Him, and He is the All-Hearing, the All-Seeing.",ref:"Ash-Shura 42 : 11"},
+{text:"Whoever brings a good deed will have ten times its like.",ref:"Al-An'am 6 : 160"},
+{text:"Whoever brings an evil deed will only be recompensed its like.",ref:"Al-An'am 6 : 160"},
+{text:"They will not be wronged.",ref:"Al-An'am 6 : 160"},
+{text:"He has no partner; this I have been commanded, and I am the first of the Muslims.",ref:"Al-An'am 6 : 163"},
+{text:"It is He who made you successors upon the earth.",ref:"Al-An'am 6 : 165"},
+{text:"Do not associate anything with Him, and do good to parents.",ref:"Al-An'am 6 : 151"},
+{text:"Do not kill your children out of poverty; We provide for you and them.",ref:"Al-An'am 6 : 151"},
+{text:"Do not approach immoralities, whether apparent or concealed.",ref:"Al-An'am 6 : 151"},
+{text:"Do not kill the soul which Allah has forbidden, except by right.",ref:"Al-An'am 6 : 151"},
+{text:"Do not approach the orphan's property except in a way that is best.",ref:"Al-An'am 6 : 152"},
+{text:"Give full measure and weight in justice.",ref:"Al-An'am 6 : 152"},
+{text:"When you speak, be just, even if it concerns a near relative.",ref:"Al-An'am 6 : 152"},
+{text:"Fulfil the covenant of Allah; this He has instructed you that you may remember.",ref:"Al-An'am 6 : 152"},
+{text:"So whoever is guided is guided for himself, and whoever errs only errs against it.",ref:"Az-Zumar 39 : 41"},
+{text:"Say: O My servants who have transgressed against themselves, do not despair of Allah's mercy.",ref:"Az-Zumar 39 : 53"},
+{text:"Turn back to your Lord and submit to Him before the punishment comes.",ref:"Az-Zumar 39 : 54"},
+{text:"Are those who know equal to those who do not know?",ref:"Az-Zumar 39 : 9"},
+{text:"Only they will remember who are people of understanding.",ref:"Az-Zumar 39 : 9"},
+{text:"Say: O My servants who believe, fear your Lord.",ref:"Az-Zumar 39 : 10"},
+{text:"For those who do good in this world is good, and the earth of Allah is spacious.",ref:"Az-Zumar 39 : 10"},
+{text:"Indeed the patient will be given their reward without account.",ref:"Az-Zumar 39 : 10"},
+{text:"Say: If you should count the favor of Allah, you could not enumerate them.",ref:"An-Nahl 16 : 18"},
+{text:"Whatever you have of favor, it is from Allah.",ref:"An-Nahl 16 : 53"},
+{text:"When adversity touches you, to Him you cry for relief.",ref:"An-Nahl 16 : 53"},
+{text:"So be patient over what they say and glorify the praise of your Lord.",ref:"Ta-Ha 20 : 130"},
+{text:"Indeed, in that is a reminder for one who has a heart, or who listens while he is present.",ref:"Qaf 50 : 37"},
+{text:"We created man and know what his soul whispers to him; We are closer to him than his jugular vein.",ref:"Qaf 50 : 16"},
+{text:"Not a word does he utter except that with him is an observer prepared.",ref:"Qaf 50 : 18"},
+{text:"This is what you were promised, for every returner, keeper of covenant.",ref:"Qaf 50 : 32"},
+{text:"Enter it in peace; this is the day of eternity.",ref:"Qaf 50 : 34"},
+{text:"Be patient over what they say, and glorify your Lord before sunrise and before sunset.",ref:"Qaf 50 : 39"},
+{text:"We did not create the heavens and the earth and what is between them in play.",ref:"Ad-Dukhan 44 : 38"},
+{text:"We did not create them except in truth, but most of them do not know.",ref:"Ad-Dukhan 44 : 39"},
+{text:"O you who believe, respond to Allah and to the Messenger when he calls you to that which gives you life.",ref:"Al-Anfal 8 : 24"},
+{text:"And know that Allah intervenes between a man and his heart.",ref:"Al-Anfal 8 : 24"},
+{text:"O you who believe, if you fear Allah He will grant you a criterion.",ref:"Al-Anfal 8 : 29"},
+{text:"O you who believe, why do you say what you do not do?",ref:"As-Saff 61 : 2"},
+{text:"It is most hateful to Allah that you say what you do not do.",ref:"As-Saff 61 : 3"},
+{text:"That you believe in Allah and His Messenger and strive with your wealth and lives.",ref:"As-Saff 61 : 11"},
+{text:"Whoever wishes for the reward of this world, with Allah is the reward of this world and the next.",ref:"An-Nisa 4 : 134"},
+{text:"Indeed, Allah orders you to render trusts to whom they are due.",ref:"An-Nisa 4 : 58"},
+{text:"When you judge between people, judge with justice.",ref:"An-Nisa 4 : 58"},
+{text:"O you who believe, obey Allah, obey the Messenger, and those in authority among you.",ref:"An-Nisa 4 : 59"},
+{text:"If you disagree, refer it back to Allah and the Messenger.",ref:"An-Nisa 4 : 59"},
+{text:"Whoever does righteousness while being a believer will not be denied the reward of his effort.",ref:"Al-Anbiya 21 : 94"},
+{text:"We sent you not except as a mercy to the worlds.",ref:"Al-Anbiya 21 : 107"},
+{text:"Did those who disbelieve not consider that the heavens and earth were joined then We separated them?",ref:"Al-Anbiya 21 : 30"},
+{text:"We made from water every living thing.",ref:"Al-Anbiya 21 : 30"},
+{text:"Every soul will taste death, and We test you with evil and with good as trial.",ref:"Al-Anbiya 21 : 35"},
+{text:"Man is created of haste; I will show you My signs, so do not be impatient.",ref:"Al-Anbiya 21 : 37"},
+{text:"Do not raise your voices above the voice of the Prophet.",ref:"Al-Hujurat 49 : 2"},
+{text:"If a wicked person comes to you with news, investigate lest you harm people out of ignorance.",ref:"Al-Hujurat 49 : 6"},
+{text:"Whoever is protected from the stinginess of his own soul, it is those who will be successful.",ref:"Al-Hashr 59 : 9"},
+{text:"They prefer others over themselves, even though they are in privation.",ref:"Al-Hashr 59 : 9"},
+{text:"Our Lord, forgive us and our brothers who preceded us in faith, and put no resentment in our hearts.",ref:"Al-Hashr 59 : 10"},
+{text:"O you who believe, fear Allah, and let every soul look to what it has put forth for tomorrow.",ref:"Al-Hashr 59 : 18"},
+{text:"Do not be like those who forgot Allah, so He made them forget themselves.",ref:"Al-Hashr 59 : 19"},
+{text:"Had We sent this Quran down upon a mountain, you would have seen it humbled.",ref:"Al-Hashr 59 : 21"},
+{text:"He is Allah, other than whom there is no deity, Knower of the unseen and witnessed.",ref:"Al-Hashr 59 : 22"},
+{text:"He is the Most Merciful, the Most Compassionate.",ref:"Al-Hashr 59 : 22"},
+{text:"He is Allah, the King, the Holy, the Source of Peace, the Guardian of Faith.",ref:"Al-Hashr 59 : 23"},
+{text:"He is Allah, the Creator, the Inventor, the Fashioner; to Him belong the best names.",ref:"Al-Hashr 59 : 24"},
+{text:"Whatever is in the heavens and earth exalts Him; He is the Exalted in Might, the Wise.",ref:"Al-Hashr 59 : 24"},
+{text:"Indeed those who wrong themselves, the angels ask them what state you were in.",ref:"An-Nisa 4 : 97"},
+{text:"Whoever emigrates in the cause of Allah will find on earth many locations and abundance.",ref:"An-Nisa 4 : 100"},
+{text:"Indeed the prayer has been decreed upon believers a decree of specified times.",ref:"An-Nisa 4 : 103"},
+{text:"O you who believe, be persistently just, witnesses for Allah, even against yourselves.",ref:"An-Nisa 4 : 135"},
+{text:"Do not follow your own desire and lose sight of justice.",ref:"An-Nisa 4 : 135"},
+{text:"The believing men and believing women are allies of one another.",ref:"At-Tawbah 9 : 71"},
+{text:"They enjoin what is right and forbid what is wrong, establish prayer, and give charity.",ref:"At-Tawbah 9 : 71"},
+{text:"Allah will have mercy upon them; Allah is Exalted in Might, Wise.",ref:"At-Tawbah 9 : 71"},
+{text:"Take from their wealth a charity to purify and bless them.",ref:"At-Tawbah 9 : 103"},
+{text:"Do they not know that Allah accepts repentance from His servants and takes charity?",ref:"At-Tawbah 9 : 104"},
+{text:"Say: Work; Allah will see your deeds, and so will the Messenger and the believers.",ref:"At-Tawbah 9 : 105"},
+{text:"Verily, Allah has purchased from the believers their lives and wealth in exchange for Paradise.",ref:"At-Tawbah 9 : 111"},
+{text:"So rejoice in your transaction that you have contracted; that is the great attainment.",ref:"At-Tawbah 9 : 111"},
+{text:"There has certainly come to you a Messenger from among yourselves; grievous to him is your suffering.",ref:"At-Tawbah 9 : 128"},
+{text:"He is concerned over you, and to the believers is kind and merciful.",ref:"At-Tawbah 9 : 128"},
+{text:"If they turn away, say: Allah is sufficient for me; there is no deity except Him.",ref:"At-Tawbah 9 : 129"},
+{text:"Upon Him I have relied, and He is the Lord of the Great Throne.",ref:"At-Tawbah 9 : 129"},
+{text:"Say: Never will we be struck except by what Allah has decreed for us.",ref:"At-Tawbah 9 : 51"},
+{text:"He is our protector, and upon Allah let the believers rely.",ref:"At-Tawbah 9 : 51"},
+{text:"Whoever fears Allah, He will make for him a way out.",ref:"At-Talaq 65 : 2"},
+{text:"And will provide for him from where he does not expect.",ref:"At-Talaq 65 : 3"},
+{text:"For everything Allah has set a measure.",ref:"At-Talaq 65 : 3"},
+{text:"Whoever fears Allah, He will make matters easy for him.",ref:"At-Talaq 65 : 4"},
+{text:"Whoever fears Allah, He will remove his misdeeds and increase his reward.",ref:"At-Talaq 65 : 5"},
+{text:"Let a man of wealth spend from his wealth, and he whose provision is restricted spend from what he has been given.",ref:"At-Talaq 65 : 7"},
+{text:"Allah does not charge a soul except with what He has given it.",ref:"At-Talaq 65 : 7"},
+{text:"Allah will bring after hardship, ease.",ref:"At-Talaq 65 : 7"},
+{text:"There has come to you from Allah a light and a clear book.",ref:"Al-Ma'idah 5 : 15"},
+{text:"By which Allah guides those who pursue His pleasure to the ways of peace.",ref:"Al-Ma'idah 5 : 16"},
+{text:"This day I have perfected for you your religion and completed My favor upon you.",ref:"Al-Ma'idah 5 : 3"},
+{text:"Do not exceed limits in your religion.",ref:"Al-Ma'idah 5 : 77"},
+{text:"O you who believe, do not make unlawful the good things Allah has made lawful.",ref:"Al-Ma'idah 5 : 87"},
+{text:"Eat of what Allah has provided for you, lawful and good, and fear Allah.",ref:"Al-Ma'idah 5 : 88"},
+{text:"Obey Allah and obey the Messenger and beware; if you turn away, know Our duty is only clear notification.",ref:"Al-Ma'idah 5 : 92"},
+{text:"O mankind, worship your Lord who created you and those before you, that you may become righteous.",ref:"Al-Baqarah 2 : 21"},
+{text:"It is He who made the earth a resting place for you, and the sky a canopy.",ref:"Al-Baqarah 2 : 22"},
+{text:"O you who believe, eat of the good things We have provided and be grateful to Allah.",ref:"Al-Baqarah 2 : 172"},
+{text:"He has only forbidden you carrion, blood, swine flesh, and what has been dedicated to other than Allah.",ref:"Al-Baqarah 2 : 173"},
+{text:"Righteousness is not that you turn your faces east or west, but righteousness is one who believes.",ref:"Al-Baqarah 2 : 177"},
+{text:"Fasting is prescribed for you so that you may become righteous.",ref:"Al-Baqarah 2 : 183"},
+{text:"Do not consume one another's wealth unjustly, nor bribe judges to knowingly take others' property.",ref:"Al-Baqarah 2 : 188"},
+{text:"Fight in the cause of Allah those who fight you, but do not transgress limits.",ref:"Al-Baqarah 2 : 190"},
+{text:"Complete the Hajj and Umrah for Allah.",ref:"Al-Baqarah 2 : 196"},
+{text:"Whatever good you do, Allah knows it.",ref:"Al-Baqarah 2 : 197"},
+{text:"Take provisions, but the best provision is righteousness.",ref:"Al-Baqarah 2 : 197"},
+{text:"Marriage should not be for compulsion, and provide for them in kindness.",ref:"An-Nisa 4 : 19"},
+{text:"Live with them in kindness; if you dislike them, perhaps you dislike a thing in which Allah has placed much good.",ref:"An-Nisa 4 : 19"},
+{text:"O mankind, fear your Lord who created you from one soul and created its mate.",ref:"An-Nisa 4 : 1"},
+{text:"Give orphans their property, and do not exchange the bad for the good.",ref:"An-Nisa 4 : 2"},
+{text:"Give women their bridal gifts graciously.",ref:"An-Nisa 4 : 4"},
+{text:"Do not give the weak-minded your property which Allah has made a means of support.",ref:"An-Nisa 4 : 5"},
+{text:"Test the orphans until they reach marriageable age.",ref:"An-Nisa 4 : 6"},
+{text:"Indeed those who devour the property of orphans unjustly consume fire into their bellies.",ref:"An-Nisa 4 : 10"},
+{text:"Allah instructs you concerning your children's inheritance.",ref:"An-Nisa 4 : 11"},
+{text:"These are the limits set by Allah; whoever obeys Allah and His Messenger will be admitted to gardens.",ref:"An-Nisa 4 : 13"},
+{text:"Allah wants to accept your repentance, but those who follow desires want you to deviate.",ref:"An-Nisa 4 : 27"},
+{text:"Allah wants to lighten your burden, for man was created weak.",ref:"An-Nisa 4 : 28"},
+{text:"Do not kill yourselves; indeed Allah is Merciful to you.",ref:"An-Nisa 4 : 29"},
+{text:"If you avoid the major sins forbidden to you, We will remove your lesser sins.",ref:"An-Nisa 4 : 31"},
+{text:"Do not wish for that by which Allah has made some superior to others.",ref:"An-Nisa 4 : 32"},
+{text:"Worship Allah and associate nothing with Him, and do good to parents, kinsfolk, orphans, and the needy.",ref:"An-Nisa 4 : 36"},
+{text:"Indeed Allah does not do injustice, even as much as an atom's weight.",ref:"An-Nisa 4 : 40"},
+{text:"Indeed Allah does not forgive association with Him, but He forgives what is less than that.",ref:"An-Nisa 4 : 48"},
+{text:"The example of those who spend their wealth for Allah is like a seed that grows seven spikes.",ref:"Al-Baqarah 2 : 261"},
+{text:"Kind speech and forgiveness are better than charity followed by injury.",ref:"Al-Baqarah 2 : 263"},
+{text:"O you who believe, do not invalidate your charities with reminders or injury.",ref:"Al-Baqarah 2 : 264"},
+{text:"Satan threatens you with poverty and orders immorality; Allah promises forgiveness and bounty.",ref:"Al-Baqarah 2 : 268"},
+{text:"He grants wisdom to whom He wills, and whoever is granted wisdom has been given much good.",ref:"Al-Baqarah 2 : 269"},
+{text:"Whatever you spend of good, it is for yourselves.",ref:"Al-Baqarah 2 : 272"},
+{text:"Charity is for the poor who are restricted in the cause of Allah, unable to move about in the land.",ref:"Al-Baqarah 2 : 273"},
+{text:"Those who spend their wealth by night and day, secretly and publicly, will have their reward with their Lord.",ref:"Al-Baqarah 2 : 274"},
+{text:"Allah destroys interest and gives increase for charities.",ref:"Al-Baqarah 2 : 276"}
+];
+function initQuoteOfDay() {
+  const start = new Date(TODAY.getFullYear(), 0, 0);
+  const diff = TODAY - start;
+  const dayOfYear = Math.floor(diff / 86400000);
+  const dayIndex = dayOfYear % Q_QUOTES.length;
+  const q = Q_QUOTES[dayIndex];
+  document.getElementById('daily-quran-quote').innerHTML = `
+    <div style="font-size:16px; font-weight:600; font-style:italic; line-height:1.6; margin-bottom:10px; color:#f8f6f0;">"${q.text}"</div>
+    <div style="width:28px;height:2px;background:#e8c96d;border-radius:2px;margin-bottom:10px;"></div>
+    <div style="font-size:11px; color:#a9c6c9; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Surah ${q.ref}</div>
+  `;
+}
+
+// ── HIJRI & BANGLA DATES ─────────────────────────────────────────
+function toHijri(date){ const jd=Math.floor((date.getTime()/86400000)+2440587.5); let l=jd-1948440+10632; const n=Math.floor((l-1)/10631); l=l-10631*n+354; const j=Math.floor((10985-l)/5316)*Math.floor(50*l/17719)+Math.floor(l/5670)*Math.floor(43*l/15238); l=l-Math.floor((30-j)/15)*Math.floor(17719*j/50)-Math.floor(j/16)*Math.floor(15238*j/43)+29; const month=Math.floor(24*l/709); const day=l-Math.floor(709*month/24); const year=30*n+j-30; const mn=['Muharram','Safar','Rabi al-Awwal','Rabi al-Thani','Jumada al-Awwal','Jumada al-Thani','Rajab',"Sha'ban",'Ramadan','Shawwal',"Dhul Qi'dah",'Dhul Hijjah']; return `${day} ${mn[month-1]} ${year} AH`; }
+
+function toBanglaDate(date){
+  const bm=['বৈশাখ','জ্যৈষ্ঠ','আষাঢ়','শ্রাবণ','ভাদ্র','আশ্বিন','কার্তিক','অগ্রহায়ণ','পৌষ','মাঘ','ফাল্গুন','চৈত্র'];
+  const ml=[31,31,31,31,31,30,30,30,30,30,30,30];
+  const y=date.getFullYear();
+  const newYr=new Date(y,3,14);
+  const newYrPrev=new Date(y-1,3,14);
+  let bYear,doy;
+  if(date>=newYr){bYear=y-593;doy=Math.floor((date-newYr)/86400000);}
+  else{bYear=y-594;doy=Math.floor((date-newYrPrev)/86400000);}
+  const isLp=yr=>(yr%4===0&&yr%100!==0)||yr%400===0;
+  const refY=date>=newYr?y:y-1;
+  const m2=[...ml]; if(isLp(refY+1)) m2[10]=31;
+  let bMonth=11,dayInM=doy;
+  for(let i=0;i<12;i++){if(dayInM<m2[i]){bMonth=i;break;}dayInM-=m2[i];}
+  return `${dayInM+1} ${bm[bMonth]} ${bYear}`;
+}
+
+function initDates(){
+  document.getElementById('hijri-date').textContent=toHijri(new Date());
+  document.getElementById('bangla-date').textContent=toBanglaDate(new Date());
+  updateDailyDateHeader(TODAY);
+}
+function updateDailyDateHeader(date){
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const isToday=dateKey(date)===dateKey(TODAY);
+  const label=document.getElementById('date-label-today');
+  if(label) label.textContent=isToday?'Today':'Viewing';
+  document.getElementById('date-display').textContent=`${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  const strip=document.getElementById('day-strip');
+  strip.innerHTML='';
+  const labels=['M','T','W','T','F','S','S'];
+  const activeIdx=(date.getDay()+6)%7;
+  labels.forEach((d,i)=>{const el=document.createElement('div');el.textContent=d;el.style.cssText=`width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:${i===activeIdx?'#c8a84b':'var(--cream)'};color:${i===activeIdx?'#fff':'#6b7a8d'};`;strip.appendChild(el);});
+}
+
+// ── TABS ──────────────────────────────────────────────────────────
+function showTab(id,btn){ ['daily','salah','tasks','health','money','reading'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('section-hidden',t!==id)); document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+
+// ── PRAYER TIMES ──────────────────────────────────────────────────
+const to12=(t)=>{ if(!t||!t.includes(':')) return t; const[h,m]=t.split(':').map(Number); return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; };
+const toMin=(t)=>{ if(!t) return 0; const[h,m]=t.split(':').map(Number); return h*60+m; };
+const addMin=(t,n)=>{ let m=toMin(t)+n; m=((m%1440)+1440)%1440; const h=Math.floor(m/60),mi=m%60; return `${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`; };
+
+async function loadPrayerTimes(){
+  const cached=gLoad('prayerTimesCache',null);
+  const today=dateKey(new Date());
+  if(cached&&cached.date===today){ renderSalahTimesCard(cached.timings); return; }
+  try{
+    const resp=await fetch(`https://api.aladhan.com/v1/timings/${today}?latitude=23.4607&longitude=91.1809&method=1`);
+    if(!resp.ok) throw new Error();
+    const data=await resp.json();
+    const timings=data.data.timings;
+    gSave('prayerTimesCache',{date:today,timings});
+    renderSalahTimesCard(timings);
+  }catch(e){
+    const c=document.getElementById('pt-windows-content');
+    if(c) c.innerHTML='<div style="font-size:12px;color:#c0392b;text-align:center;padding:8px;">Unavailable offline</div>';
+  }
+}
+
+function renderSalahTimesCard(timings){
+  const c=document.getElementById('pt-windows-content');
+  if(!c) return;
+  const F=timings.Fajr, Sr=timings.Sunrise, D=timings.Dhuhr, A=timings.Asr, M=timings.Maghrib, I=timings.Isha;
+  const ishraqStart=addMin(Sr,15), ishraqEnd=addMin(Sr,90);
+  const chastEnd=addMin(D,-10);
+  const forbidDawnS=addMin(Sr,-10), forbidDawnE=addMin(Sr,20);
+  const forbidNoonS=addMin(D,-8), forbidNoonE=D;
+  const forbidDuskS=addMin(M,-20), forbidDuskE=addMin(M,5);
+
+  const rowHTML=(name,st,en,color='#0f1f3d')=>`
+    <div class="pt-window-row">
+      <div class="pt-window-name text-navy">${name}</div>
+      <div class="pt-window-time">${to12(st)}</div>
+      <div class="pt-window-end">→ ${to12(en)}</div>
+    </div>`;
+  const forbRow=(name,st,en)=>`
+    <div class="pt-forbidden-row">
+      <div style="display:flex;align-items:center;gap:4px;"><span class="forbidden-badge">⛔</span><span style="font-size:11px;color:#c0392b;font-weight:600;">${name}</span></div>
+      <div style="font-size:11px;color:#c0392b;">${to12(st)}</div>
+      <div style="font-size:11px;color:#c0392b;">→ ${to12(en)}</div>
+    </div>`;
+
+  c.innerHTML=`
+    <div class="pt-section-head">Fard Prayers</div>
+    ${rowHTML('Fajr',F,Sr)}
+    ${rowHTML('Dhuhr',D,A)}
+    ${rowHTML('Asr',A,M)}
+    ${rowHTML('Maghrib',M,I)}
+    ${rowHTML('Isha',I,'Midnight')}
+    <div class="pt-section-head" style="margin-top:8px;">Nafl Prayers</div>
+    ${rowHTML('Tahajjud',timings.Midnight||'00:00',F)}
+    ${rowHTML('Ishraq',ishraqStart,ishraqEnd)}
+    ${rowHTML('Chasht / Duha',ishraqEnd,chastEnd)}
+    ${rowHTML('Awwabin',M,I)}
+    <div class="pt-section-head" style="margin-top:8px;color:#c0392b;">Forbidden Times</div>
+    ${forbRow('Sunrise',forbidDawnS,forbidDawnE)}
+    ${forbRow('Zawal (Noon)',forbidNoonS,forbidNoonE)}
+    ${forbRow('Sunset',forbidDuskS,forbidDuskE)}
+  `;
+}
+
+// ── MOOD / WEATHER ────────────────────────────────────────────────
+function initPickers(){
+  const moods=['😄','🙂','😐','😔','😫'], weathers=['☀️','⛅','☁️','🌧️','⛈️'];
+  const moodSel=load('mood',null), wxSel=load('weather',null);
+  function makePicker(id,items,key,sel){ const c=document.getElementById(id); c.innerHTML=''; items.forEach((em,i)=>{ const s=document.createElement('span'); s.textContent=em; s.className='emoji-pick'+(i===sel?' sel':''); s.onclick=()=>{ c.querySelectorAll('.emoji-pick').forEach((x,j)=>x.classList.toggle('sel',j===i)); save(key,i); }; c.appendChild(s); }); }
+  makePicker('mood-picker',moods,'mood',moodSel);
+  makePicker('weather-picker',weathers,'weather',wxSel);
+}
+
+// ── ENERGY ───────────────────────────────────────────────────────
+function initEnergy(){
+  const lbls=['Very Low','Low','Medium','High','Very High'];
+  const defs=[{key:'energyMorn',label:'Morning'},{key:'energyPost',label:'Post-work'},{key:'energyNight',label:'Night'}];
+  const c=document.getElementById('energy-sliders'); c.innerHTML='';
+  defs.forEach(e=>{ const val=load(e.key,3); const wrap=document.createElement('div'); wrap.style.marginBottom='10px'; wrap.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;color:#6b7a8d;">${e.label}</span><span style="font-size:12px;color:#c8a84b;font-weight:600;" id="lbl-${e.key}">${lbls[val-1]}</span></div><input type="range" min="1" max="5" value="${val}" style="width:100%;accent-color:#c8a84b;" oninput="save('${e.key}',+this.value);document.getElementById('lbl-${e.key}').textContent=['Very Low','Low','Medium','High','Very High'][this.value-1]"/>`; c.appendChild(wrap); });
+}
+
+// ── TEXT FIELDS ───────────────────────────────────────────────────
+function initTextFields(){
+  ['reflection','reminder','gratitude','win','tomorrow','dua','wakeTime','sleepTime','workout','exMins','steps','notes'].forEach(k=>{ const el=document.getElementById('f-'+k); if(el) el.value=load(k,''); });
+  const r=load('restedness',3); const rs=document.getElementById('restedness-slider');
+  if(rs){ rs.value=r; document.getElementById('restedness-label').textContent=['','😫 Exhausted','😔 Tired','😐 Okay','🙂 Rested','😄 Refreshed'][r]; }
+  calcSleepDuration();
+  document.getElementById('screen-time-val').textContent=load('screenTime',2);
+}
+function adjScreenTime(d){ let v=parseFloat(document.getElementById('screen-time-val').textContent)+d; v=Math.max(0,Math.min(16,Math.round(v*2)/2)); document.getElementById('screen-time-val').textContent=v; save('screenTime',v); }
+function calcSleepDuration(){ const s=document.getElementById('f-sleepTime'), w=document.getElementById('f-wakeTime'), d=document.getElementById('sleep-duration-display'); if(!s||!w||!d) return; if(!s.value||!w.value){d.style.display='none';return;} const[sh,sm]=s.value.split(':').map(Number),[wh,wm]=w.value.split(':').map(Number); let sm2=sh*60+sm,wm2=wh*60+wm; if(wm2<=sm2) wm2+=1440; const diff=wm2-sm2; d.textContent=`😴 ${Math.floor(diff/60)}h ${diff%60}m`; d.style.display='block'; d.style.color=diff>=420?'#1e8a4a':diff>=300?'#c8a84b':'#c0392b'; }
+
+// ── SALAH TABLE ───────────────────────────────────────────────────
+const PRAYERS=['Fajr','Dhuhr','Asr','Maghrib','Isha'];
+function initSalah(){
+  const sn={Fajr:true,Dhuhr:true,Asr:false,Maghrib:true,Isha:true};
+  const tbody=document.getElementById('salah-tbody'); tbody.innerHTML='';
+  const data=load('salahData',{});
+  PRAYERS.forEach(p=>{ const tr=document.createElement('tr'); const warn=(p==='Dhuhr'||p==='Asr')?`<span class="work-warn">⚠</span>`:''; tr.innerHTML=`<td style="font-weight:600;" class="text-navy">${p}${warn}</td><td style="text-align:center;"><div class="cb" id="scb-${p}-fard" style="border-color:#1a6b72;margin:auto;" onclick="toggleSalahCb('${p}','fard')"></div></td><td style="text-align:center;">${sn[p]?`<div class="cb" id="scb-${p}-sunnah" style="border-color:#c8a84b;margin:auto;" onclick="toggleSalahCb('${p}','sunnah')"></div>`:'<span style="color:#ddd8ce;">—</span>'}</td><td style="text-align:center;"><div class="cb" id="scb-${p}-ontime" style="border-color:#1e8a4a;margin:auto;" onclick="toggleSalahCb('${p}','ontime')"></div></td>`; tbody.appendChild(tr); ['fard','sunnah','ontime'].forEach(t=>{ if(data[p+'_'+t]) renderCb('scb-'+p+'-'+t,true,t==='sunnah'?'#c8a84b':t==='ontime'?'#1e8a4a':'#1a6b72'); }); });
+  updateStreakDisplay();
+}
+function toggleSalahCb(p,t){ const data=load('salahData',{}); data[p+'_'+t]=!data[p+'_'+t]; save('salahData',data); renderCb('scb-'+p+'-'+t,data[p+'_'+t],t==='sunnah'?'#c8a84b':t==='ontime'?'#1e8a4a':'#1a6b72'); if(t==='fard') updateStreakDisplay(); }
+function renderCb(id,checked,color){ const el=document.getElementById(id); if(!el) return; el.style.background=checked?color:'transparent'; el.style.borderColor=checked?color:color+'66'; el.innerHTML=checked?'<span style="color:#fff;font-size:11px;">✓</span>':''; }
+function toggleCb(key,elId,color){ const val=!load(key,false); save(key,val); renderCb(elId,val,color); }
+
+// ── RESISTANCE STREAK ──────────────────────────────────────────────
+const RES_MILESTONES = [3,7,30,90,180,365];
+const RES_TRIGGERS_BASE = ['Bored','Stressed','Late night','Alone','Social media','Other'];
+const RES_INSTEAD_BASE = ['Walk outside','Cold water on face','Dhikr / dua','Call a friend','Sleep early','Read Qur\u2019an'];
+function getResTriggerList(){ return RES_TRIGGERS_BASE.concat(gLoad('resCustomTriggers',[])); }
+function getResInsteadList(){ return RES_INSTEAD_BASE.concat(gLoad('resCustomInstead',[])); }
+function addCustomResTag(kind){
+  const inputId = kind==='trigger' ? 'res-trigger-custom' : 'res-instead-custom';
+  const input = document.getElementById(inputId);
+  const val = (input.value||'').trim();
+  if(!val) return;
+  const storeKey = kind==='trigger' ? 'resCustomTriggers' : 'resCustomInstead';
+  const baseList = kind==='trigger' ? RES_TRIGGERS_BASE : RES_INSTEAD_BASE;
+  const list = gLoad(storeKey,[]);
+  if(!baseList.includes(val) && !list.includes(val)){ list.push(val); gSave(storeKey,list); }
+  const d=load('resTriggers',{trigger:'',instead:''});
+  d[kind]=val; save('resTriggers',d);
+  input.value='';
+  renderResTriggerChips();
+  logResSlipEntry();
+}
+function toggleResistance(){
+  const val=!load('resistance',false);
+  save('resistance',val);
+  renderCb('cb-resistance',val,'#5fd08a');
+  updateResStreakDisplay();
+  if(val) document.getElementById('res-slip-panel').style.display='none';
+}
+function logResSlip(){
+  save('resistance',false);
+  renderCb('cb-resistance',false,'#5fd08a');
+  updateResStreakDisplay();
+  document.getElementById('res-slip-panel').style.display='block';
+}
+function logResSlipEntry(){
+  const d=load('resTriggers',{trigger:'',instead:''});
+  if(!d.trigger && !d.instead) return;
+  const log=gLoad('resSlipLog',[]);
+  log.push({date:dateKey(TODAY),trigger:d.trigger,instead:d.instead});
+  gSave('resSlipLog',log);
+  renderResInsight();
+}
+function renderResTriggerChips(){
+  const data=load('resTriggers',{trigger:'',instead:''});
+  const tc=document.getElementById('res-trigger-chips'); tc.innerHTML='';
+  getResTriggerList().forEach(t=>{
+    const sel=data.trigger===t;
+    const chip=document.createElement('div');
+    chip.textContent=t;
+    chip.style.cssText=`padding:4px 9px;border-radius:14px;font-size:10px;cursor:pointer;${sel?'background:#5fd08a;color:#0f2818;font-weight:700;':'background:rgba(255,255,255,0.08);color:#c8d4da;'}`;
+    chip.onclick=()=>{ const d=load('resTriggers',{trigger:'',instead:''}); d.trigger=t; save('resTriggers',d); renderResTriggerChips(); logResSlipEntry(); };
+    tc.appendChild(chip);
+  });
+  const ic=document.getElementById('res-instead-chips'); ic.innerHTML='';
+  getResInsteadList().forEach(t=>{
+    const sel=data.instead===t;
+    const chip=document.createElement('div');
+    chip.textContent=t;
+    chip.style.cssText=`padding:4px 9px;border-radius:14px;font-size:10px;cursor:pointer;${sel?'background:#e8c96d;color:#3d2f0a;font-weight:700;':'background:rgba(255,255,255,0.08);color:#c8d4da;'}`;
+    chip.onclick=()=>{ const d=load('resTriggers',{trigger:'',instead:''}); d.instead=t; save('resTriggers',d); renderResTriggerChips(); logResSlipEntry(); };
+    ic.appendChild(chip);
+  });
+}
+function renderResMilestones(streak){
+  const achieved=gLoad('resMilestonesHit',[]);
+  RES_MILESTONES.forEach(m=>{ if(streak>=m && !achieved.includes(m)) achieved.push(m); });
+  gSave('resMilestonesHit',achieved);
+  const c=document.getElementById('res-milestones'); c.innerHTML='';
+  RES_MILESTONES.forEach(m=>{
+    const hit=streak>=m;
+    const pill=document.createElement('div');
+    pill.style.cssText=`padding:4px 9px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;${hit?'background:#1e8a4a;color:#fff;':'background:rgba(255,255,255,0.08);color:#8ea3b0;'}`;
+    pill.textContent=(hit?'✓ ':'')+m+'d';
+    c.appendChild(pill);
+  });
+  const next=RES_MILESTONES.find(m=>m>streak);
+  const bar=document.getElementById('res-progress-bar'), label=document.getElementById('res-progress-label');
+  if(next){
+    const prev=[0,...RES_MILESTONES].reverse().find(m=>m<=streak) ?? 0;
+    const pct=Math.min(100,Math.round(((streak-prev)/(next-prev))*100));
+    bar.style.width=pct+'%';
+    const left=next-streak;
+    label.textContent=`${left} day${left===1?'':'s'} to ${next}-day milestone`;
+  } else {
+    bar.style.width='100%';
+    label.textContent='All milestones reached — incredible consistency 🏆';
+  }
+}
+function getResDayVal(dk){
+  const pf=dk===dateKey(TODAY)?'':dk+'_';
+  try{ const v=localStorage.getItem(pf+'resistance'); return v?JSON.parse(v):false; }catch(e){ return false; }
+}
+function hasResDataForDay(dk){
+  const pf=dk===dateKey(TODAY)?'':dk+'_';
+  return localStorage.getItem(pf+'resistance')!==null;
+}
+function renderResHeatmap(){
+  const c=document.getElementById('res-heatmap'); c.innerHTML='';
+  for(let i=27;i>=0;i--){
+    const d=new Date(TODAY); d.setDate(d.getDate()-i);
+    const dk=dateKey(d);
+    const val=getResDayVal(dk);
+    const cell=document.createElement('div');
+    cell.title=dk;
+    cell.style.cssText=`aspect-ratio:1;border-radius:4px;${val?'background:#5fd08a;':'background:rgba(255,255,255,0.08);'}`;
+    c.appendChild(cell);
+  }
+}
+function calcResConsistency(){
+  let tracked=0, held=0;
+  for(let i=0;i<30;i++){
+    const d=new Date(TODAY); d.setDate(d.getDate()-i);
+    const dk=dateKey(d);
+    if(!hasResDataForDay(dk)) continue;
+    tracked++;
+    if(getResDayVal(dk)) held++;
+  }
+  if(tracked===0) return 0;
+  return Math.round((held/tracked)*100);
+}
+function renderResInsight(){
+  const el=document.getElementById('res-insight');
+  const log=gLoad('resSlipLog',[]);
+  if(!log.length){ el.style.display='none'; return; }
+  const counts={};
+  log.forEach(e=>{ if(e.instead){ counts[e.instead]=(counts[e.instead]||0)+1; } });
+  const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length){ el.style.display='none'; return; }
+  const [top,n]=entries[0];
+  el.style.display='block';
+  el.innerHTML=`💡 After a slip, <b>"${top}"</b> is what you've reached for most (${n}× logged) — worth trying again.`;
+}
+let resReminderTimeout=null;
+function setResReminderTime(val){
+  gSave('resReminderTime',val);
+  scheduleResReminder();
+}
+function scheduleResReminder(){
+  if(resReminderTimeout){ clearTimeout(resReminderTimeout); resReminderTimeout=null; }
+  const val=gLoad('resReminderTime','');
+  if(!val) return;
+  if('Notification' in window && Notification.permission==='default'){ Notification.requestPermission(); }
+  const [h,m]=val.split(':').map(Number);
+  const now=new Date();
+  const target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0,0);
+  if(target<=now) target.setDate(target.getDate()+1);
+  const ms=target-now;
+  resReminderTimeout=setTimeout(()=>{
+    if('Notification' in window && Notification.permission==='granted'){
+      new Notification('🛡️ Resistance check-in',{body:'Your high-risk time — stay strong. Log your status in the planner.'});
+    }
+    scheduleResReminder();
+  },ms);
+}
+function initResistance(){
+  const val=load('resistance',false);
+  renderCb('cb-resistance',val,'#5fd08a');
+  updateResStreakDisplay();
+  renderResTriggerChips();
+  renderResInsight();
+  const trig=load('resTriggers',{trigger:'',instead:''});
+  document.getElementById('res-slip-panel').style.display=(!val && (trig.trigger||trig.instead))?'block':'none';
+  const rt=document.getElementById('res-reminder-time');
+  if(rt) rt.value=gLoad('resReminderTime','');
+  scheduleResReminder();
+}
+function calcResStreak(){
+  let s=0; const d=new Date(TODAY); d.setDate(d.getDate()-1);
+  while(true){ const dk=dateKey(d); const v=getResDayVal(dk); if(v){s++;d.setDate(d.getDate()-1);}else break;}
+  if(load('resistance',false)) s++; return s;
+}
+function updateResStreakDisplay(){
+  const streak=calcResStreak();
+  let best=gLoad('resBestStreak',0);
+  if(streak>best){ best=streak; gSave('resBestStreak',best); }
+  document.getElementById('res-streak').textContent=streak;
+  document.getElementById('res-best').textContent=best;
+  document.getElementById('res-rate').textContent=calcResConsistency()+'%';
+  renderResMilestones(streak);
+  renderResHeatmap();
+}
+
+// ── STREAK ───────────────────────────────────────────────────────
+function isDayComplete(dk){ const pf=dk===dateKey(TODAY)?'':dk+'_'; const d=(()=>{try{const v=localStorage.getItem(pf+'salahData');return v?JSON.parse(v):{};}catch(e){return{};}})(); return PRAYERS.every(p=>d[p+'_fard']===true); }
+function calcStreak(){ let s=0,best=gLoad('bestStreak',0); const d=new Date(TODAY); d.setDate(d.getDate()-1); while(true){if(isDayComplete(dateKey(d))){s++;d.setDate(d.getDate()-1);}else break;} if(isDayComplete(dateKey(TODAY))) s++; if(s>best){best=s;gSave('bestStreak',best);} return{streak:s,best}; }
+function updateStreakDisplay(){ const{streak,best}=calcStreak(); const sEl=document.getElementById('streak-num'),bEl=document.getElementById('streak-best'); if(sEl) sEl.textContent=streak; if(bEl) bEl.textContent=best; }
+
+// ── QADA AUTO-TRACKING ────────────────────────────────────────────
+function processQadaAutoTracking(){
+  if(!gLoad('qadaTrackingStart',null)) gSave('qadaTrackingStart',dateKey(TODAY));
+  const yesterday=new Date(TODAY); yesterday.setDate(yesterday.getDate()-1);
+  const lastP=gLoad('qadaLastProcessed',null);
+  if(lastP===dateKey(yesterday)) return;
+  const trackStart=gLoad('qadaTrackingStart',dateKey(TODAY));
+  let from=lastP?parseKey(lastP):parseKey(trackStart);
+  from.setDate(from.getDate()+1);
+  let autoMissed=gLoad('qadaAutoMissed',0);
+  const d=new Date(from);
+  while(d<=yesterday){ const dk=dateKey(d); const pf=dk+'_'; try{const v=localStorage.getItem(pf+'salahData'); if(v){const sd=JSON.parse(v); autoMissed+=PRAYERS.filter(p=>!sd[p+'_fard']).length;}else{autoMissed+=5;}}catch(e){autoMissed+=5;} d.setDate(d.getDate()+1); }
+  gSave('qadaAutoMissed',autoMissed); gSave('qadaLastProcessed',dateKey(yesterday));
+}
+
+function getQadaStart(){ return new Date(gLoad('qadaStartDate','2016-12-18')); }
+function getTotalQada(){
+  const qStart=getQadaStart();
+  const trackStart=parseKey(gLoad('qadaTrackingStart',dateKey(TODAY)));
+  const histDays=Math.max(0,Math.floor((trackStart-qStart)/86400000));
+  return histDays*5+gLoad('qadaAutoMissed',0);
+}
+function getTotalMadeUp(){ const d=gLoad('qadaMadeUp',{}); return PRAYERS.reduce((a,p)=>a+(d[p]||0),0); }
+function updateQadaDisplay(){
+  const total=getTotalQada(), madeUp=getTotalMadeUp();
+  const remaining=Math.max(0,total-madeUp);
+  const pct=total>0?Math.min(100,Math.round((madeUp/total)*100)):0;
+  document.getElementById('qada-count-display').textContent=madeUp.toLocaleString()+' / '+total.toLocaleString();
+  document.getElementById('qada-bar').style.width=pct+'%';
+  document.getElementById('qada-pct').textContent=pct+'% complete';
+  document.getElementById('qada-remaining').textContent=remaining.toLocaleString()+' remaining';
+  document.getElementById('qada-eta').textContent=remaining>0?`At 5/day → done in ~${Math.ceil(remaining/5).toLocaleString()} days`:'🎉 All qada completed! Alhamdulillah!';
+  const autoM=gLoad('qadaAutoMissed',0);
+  const noteEl=document.getElementById('qada-auto-note');
+  if(noteEl&&autoM>0) noteEl.textContent=`↑ ${autoM} auto-detected from missed days since tracking started`;
+  const d=gLoad('qadaMadeUp',{});
+  PRAYERS.forEach(p=>{ const el=document.getElementById('qada-total-'+p); if(el) el.textContent='Total: '+(d[p]||0).toLocaleString(); });
+}
+function initQada(){
+  const c=document.getElementById('qada-per-prayer'); c.innerHTML='';
+  const today=load('todayQada',{});
+  PRAYERS.forEach(p=>{ const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ddd8ce;'; row.innerHTML=`<span style="font-size:13px;font-weight:600;width:70px;" class="text-navy">${p}</span><div style="display:flex;align-items:center;gap:10px;"><button class="counter-btn btn-counter" onclick="adjQada('${p}',-1)">−</button><span style="font-size:14px;font-weight:700;color:#1a6b72;width:30px;text-align:center;" id="qada-today-${p}">${today[p]||0}</span><button class="counter-btn" style="background:#1a6b72;color:#fff;" onclick="adjQada('${p}',1)">+</button></div><span style="font-size:11px;color:#6b7a8d;" id="qada-total-${p}"></span>`; c.appendChild(row); });
+  updateQadaDisplay();
+}
+function adjQada(p,delta){ const today=load('todayQada',{}), made=gLoad('qadaMadeUp',{}); const nw=Math.max(0,(today[p]||0)+delta); const diff=nw-(today[p]||0); today[p]=nw; made[p]=Math.max(0,(made[p]||0)+diff); save('todayQada',today); gSave('qadaMadeUp',made); document.getElementById('qada-today-'+p).textContent=nw; updateQadaDisplay(); }
+
+// ── TASBEEH ───────────────────────────────
+const TASBEEH_LIST=[
+  {key:'sub', ar:'سُبْحَانَ اللَّهِ', en:'SubhanAllah', bn:'সুবহানাল্লাহ', def:33},
+  {key:'hamd', ar:'اَلْحَمْدُ لِلَّهِ', en:'Alhamdulillah', bn:'আলহামদুলিল্লাহ', def:33},
+  {key:'akbar', ar:'اَللَّهُ أَكْبَرُ', en:'Allahu Akbar', bn:'আল্লাহু আকবার', def:33},
+  {key:'tahlil', ar:'لَا إِلٰهَ إِلَّا اللَّهُ', en:'La ilaha illallah', bn:'লা ইলাহা ইল্লাল্লাহ', def:33},
+  {key:'sub_bih', ar:'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', en:'SubhanAllah wa bihamdihi', bn:'সুবহানাল্লাহি ওয়া বিহামদিহি', def:100},
+  {key:'sub_azm', ar:'سُبْحَانَ اللَّهِ الْعَظِيمِ', en:'SubhanAllahil Azeem', bn:'সুবহানাল্লাহিল আযীম', def:33},
+  {key:'hawla_full', ar:'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', en:'La hawla wa la quwwata illa billah', bn:'লা হাউলা ওয়ালা কুওয়াতা ইল্লা বিল্লাহ', def:33},
+  {key:'istigh', ar:'أَسْتَغْفِرُ اللَّهَ', en:'Astaghfirullah', bn:'আস্তাগফিরুল্লাহ', def:100},
+  {key:'maghfir', ar:'اللَّهُمَّ اغْفِرْ لِي وَارْحَمْنِي وَاهْدِنِي وَعَافِنِي وَارْزُقْنِي', en:'Allahummaghfir li warhamni wahdini wa \'afini warzuqni', bn:'আল্লা-হুম্মাগফির লী ওয়ারহামনী ওয়াহদিনী ওয়া \'আ-ফিনী ওয়ারযুক্বনী', def:33}
+];
+const TG_TARGETS=[7,33,50,100];
+const TR=65, TC=2*Math.PI*TR;
+let activeTKey='sub';
+
+function initTasbeeh(){ activeTKey=load('activeTasbeeh','sub'); renderTasbeehUI(); }
+
+function renderTasbeehUI(){
+  const c=document.getElementById('tasbeeh-rows'); c.innerHTML='';
+  const counts=load('dhikr',{}), targets=load('dhikrTarget',{});
+  const active=TASBEEH_LIST.find(t=>t.key===activeTKey)||TASBEEH_LIST[0];
+  const cnt=counts[active.key]||0, tgt=targets[active.key]||active.def;
+  const pct=Math.min(1,cnt/tgt), offset=TC*(1-pct);
+  const ringC=cnt>=tgt?'#1e8a4a':'#c8a84b', numC=cnt>=tgt?'#1e8a4a':'#1a6b72';
+
+  const ds=document.createElement('div'); ds.style.cssText='margin-bottom:14px;';
+  const opts=TASBEEH_LIST.map(t=>`<option value="${t.key}"${t.key===activeTKey?' selected':''}>${t.en}</option>`).join('');
+  ds.innerHTML=`<select class="modern-select" id="tasbeeh-select" onchange="selectTasbeeh(this.value)">${opts}</select>`;
+  c.appendChild(ds);
+
+  const cs=document.createElement('div'); cs.style.cssText='text-align:center;padding:4px 0 4px;';
+  cs.innerHTML=`
+    <div style="font-size:19px;font-weight:700;margin-bottom:1px;direction:rtl;" class="text-navy">${active.ar}</div>
+    <div style="font-size:12px;color:#1a6b72;font-weight:600;margin-bottom:1px;">${active.en}</div>
+    <div style="font-size:12px;color:#6b7a8d;margin-bottom:12px;">${active.bn}</div>
+    <div id="t-circle" onclick="incActiveTasbeeh()" style="position:relative;width:160px;height:160px;margin:0 auto;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+      <svg width="160" height="160" style="transform:rotate(-90deg);">
+        <circle cx="80" cy="80" r="${TR}" fill="var(--cream)" stroke="var(--cream)" stroke-width="12"/>
+        <circle id="t-ring" cx="80" cy="80" r="${TR}" fill="none" stroke="${ringC}" stroke-width="12"
+          stroke-linecap="round" stroke-dasharray="${TC}" stroke-dashoffset="${offset}" style="transition:stroke-dashoffset 0.2s,stroke 0.2s;"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none;">
+        <div id="t-count" style="font-size:48px;font-weight:800;color:${numC};line-height:1;">${cnt}</div>
+        <div id="t-of" style="font-size:11px;color:#6b7a8d;margin-top:2px;">of ${tgt}</div>
+      </div>
+    </div>
+    ${cnt>=tgt?'<div style="font-size:12px;color:#1e8a4a;font-weight:700;margin-top:8px;">✅ Complete!</div>':''}
+    <div style="display:flex;justify-content:center;gap:8px;margin-top:14px;">
+      ${TG_TARGETS.map(n=>`<button onclick="setActiveTarget(${n})" id="t-tgt-${n}" style="border-radius:99px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid ${n===tgt?'#c8a84b':'#ddd8ce'};background:${n===tgt?'#c8a84b':'transparent'};color:${n===tgt?'#fff':'#6b7a8d'};">${n}</button>`).join('')}
+    </div>`;
+  c.appendChild(cs);
+
+  const report=document.createElement('div');
+  report.id='tasbeeh-daily-report';
+  report.style.cssText='margin-top:14px;padding-top:12px;border-top:1px solid var(--border);';
+  c.appendChild(report);
+  renderTasbeehDailyReport();
+}
+
+function renderTasbeehDailyReport(){
+  const el=document.getElementById('tasbeeh-daily-report');
+  if(!el) return;
+  const counts=load('dhikr',{});
+  const rows=TASBEEH_LIST.map(t=>({...t,cnt:counts[t.key]||0})).filter(t=>t.cnt>0);
+  const total=rows.reduce((a,r)=>a+r.cnt,0);
+  if(rows.length===0){
+    el.innerHTML=`<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Today's Report</div>
+      <div style="font-size:12px;color:var(--muted);text-align:center;padding:6px 0;">No dhikr counted yet today</div>`;
+    return;
+  }
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">Today's Report</div>
+      <div style="font-size:11px;font-weight:700;color:#1a6b72;">${total.toLocaleString()} total</div>
+    </div>
+    ${rows.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0ece4;">
+        <span style="font-size:12px;font-weight:600;" class="text-navy">${r.en}</span>
+        <span style="font-size:12px;font-weight:700;color:#1a6b72;">${r.cnt.toLocaleString()}</span>
+      </div>`).join('')}`;
+}
+
+function selectTasbeeh(key){ activeTKey=key; save('activeTasbeeh',key); renderTasbeehUI(); }
+function incActiveTasbeeh(){
+  const counts=load('dhikr',{}), targets=load('dhikrTarget',{});
+  const key=activeTKey;
+  const tgt=targets[key]||TASBEEH_LIST.find(t=>t.key===key)?.def||33;
+  const cur=counts[key]||0;
+  if(cur>=tgt) return; // cap at target
+  counts[key]=cur+1; save('dhikr',counts);
+  const cnt=counts[key], pct=Math.min(1,cnt/tgt), offset=TC*(1-pct);
+  const ringC=cnt>=tgt?'#1e8a4a':'#c8a84b', numC=cnt>=tgt?'#1e8a4a':'#1a6b72';
+  const ring=document.getElementById('t-ring'), countEl=document.getElementById('t-count');
+  if(ring){ring.style.strokeDashoffset=offset;ring.style.stroke=ringC;}
+  if(countEl){countEl.textContent=cnt;countEl.style.color=numC;}
+  if(cnt>=tgt){ renderTasbeehUI(); return; }
+  const circle=document.getElementById('t-circle');
+  if(circle){circle.style.transform='scale(0.93)';setTimeout(()=>circle.style.transform='scale(1)',80);}
+  if(navigator.vibrate) navigator.vibrate(15);
+  renderTasbeehDailyReport();
+}
+function setActiveTarget(n){ const t=load('dhikrTarget',{}); t[activeTKey]=n; save('dhikrTarget',t); renderTasbeehUI(); }
+function resetAllTasbeeh(){ save('dhikr',{}); renderTasbeehUI(); }
+
+// ── FASTS ─────────────────────────────────────────────────────────
+function toggleFast(day){ 
+  const val=!load('fast_'+day,false); 
+  save('fast_'+day,val); 
+  const card=document.getElementById('fast-'+day); 
+  if(val) card.classList.add('active-fast');
+  else card.classList.remove('active-fast');
+  document.getElementById('fast-'+day+'-icon').textContent=val?'✅':'⬜'; 
+}
+function initFasts(){ ['mon','thu'].forEach(d=>{if(load('fast_'+d,false)) toggleFast(d);}); }
+
+// ── ADHKAR ────────────────────────────────────────────────────────
+function initAdhkar(){ if(load('adhkar_morning',false)) renderCb('cb-morning',true,'#1a6b72'); if(load('adhkar_evening',false)) renderCb('cb-evening',true,'#1a6b72'); }
+
+// ── DU'A DATABASE (with explicit titles matching v4) ──────────────
+const DUA_DB={
+  wakeup: { title: "Waking Up", ar:'اَلْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ', bn:'আলহামদুলিল্লাহিল্লাযী আহইয়ানা বা\'দা মা আমাতানা ওয়া ইলাইহিন নুশূর', en:'Alhamdulillahil-ladhee ahyana ba\'da ma amatana wa ilayhin-nushoor', meaning:'All praise is for Allah who gave us life after having taken it from us and unto Him is the resurrection.' },
+  sleep: { title: "Before Sleep", ar:'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا', bn:'বিসমিকাল্লাহুম্মা আমূতু ওয়া আহইয়া', en:'Bismika Allahumma amootu wa ahya', meaning:'In Your name O Allah, I die and I live.' },
+  eating: { title: "Before Eating", ar:'بِسْمِ اللَّهِ وَعَلَى بَرَكَةِ اللَّهِ', bn:'বিসমিল্লাহি ওয়া আলা বারাকাতিল্লাহ', en:'Bismillahi wa ala barakatillah', meaning:'In the name of Allah and with the blessings of Allah.' },
+  aftereat: { title: "After Eating", ar:'اَلْحَمْدُ لِلَّهِ الَّذِي أَطْعَمَنَا وَسَقَانَا وَجَعَلَنَا مُسْلِمِينَ', bn:'আলহামদুলিল্লাহিল্লাযী আত\'আমানা ওয়া সাক্বানা ওয়া জা\'আলানা মুসলিমীন', en:'Alhamdulillahil-ladhee at\'amana wa saqana wa ja\'alana Muslimeen', meaning:'All praise is for Allah who fed us, gave us drink and made us Muslims.' },
+  toilet_enter: { title: "Entering Toilet", ar:'اَللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ', bn:'আল্লাহুম্মা ইন্নি আউযু বিকা মিনাল খুবুসি ওয়াল খাবায়িস', en:'Allahumma innee a\'oodhu bika minal khubuthi wal khaba\'ith', meaning:'O Allah, I seek refuge in You from male and female evil jinn.' },
+  toilet_exit: { title: "Leaving Toilet", ar:'غُفْرَانَكَ', bn:'গুফরানাক', en:'Ghufranak', meaning:'I seek Your forgiveness.' },
+  leaving_home: { title: "Leaving Home", ar:'بِسْمِ اللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', bn:'বিসমিল্লাহি তাওয়াক্কালতু আলাল্লাহি ওয়ালা হাওলা ওয়ালা কুওয়াতা ইল্লা বিল্লাহ', en:'Bismillahi, tawakkaltu \'alallahi, wa la hawla wa la quwwata illa billah', meaning:'In the name of Allah, I trust in Allah, there is no power and no strength except with Allah.' },
+  entering_home: { title: "Entering Home", ar:'اَللَّهُمَّ إِنِّي أَسْأَلُكَ خَيْرَ الْمَوْلِجِ وَخَيْرَ الْمَخْرَجِ', bn:'আল্লাহুম্মা ইন্নি আসআলুকা খাইরাল মাউলিজি ওয়া খাইরাল মাখরাজি', en:'Allahumma innee as\'aluka khairal mawliji wa khairal makhraji', meaning:'O Allah, I ask You for the good of entering and the good of leaving.' },
+  travel: { title: "Travel / Riding", ar:'سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ', bn:'সুবহানাল্লাযী সাখখারা লানা হাযা ওয়ামা কুন্না লাহু মুকরিনীন', en:'Subhana-alladhee sakhkhara lana hadha wa ma kunna lahu muqrineen', meaning:'Glory be to the One who has subjected this to us, and we were not capable of it.' },
+  masjid_enter: { title: "Entering Masjid", ar:'اَللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ', bn:'আল্লাহুম্মাফতাহ লী আবওয়াবা রাহমাতিক', en:'Allahumma iftah lee abwaba rahmatik', meaning:'O Allah, open the doors of Your mercy for me.' },
+  masjid_exit: { title: "Leaving Masjid", ar:'اَللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ', bn:'আল্লাহুম্মা ইন্নি আসআলুকা মিন ফাদলিক', en:'Allahumma innee as\'aluka min fadlik', meaning:'O Allah, I ask You of Your favour.' },
+  istighfar: { title: "Istighfar", ar:'أَسْتَغْفِرُ اللَّهَ الَّذِي لَا إِلٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ وَأَتُوبُ إِلَيْهِ', bn:'আস্তাগফিরুল্লাহাল্লাযী লা ইলাহা ইল্লা হুয়াল হাইয়্যুল ক্বাইয়্যূম ওয়া আতূবু ইলাইহ', en:'Astaghfirullahal-ladhee la ilaha illa huwal Hayyul Qayyum wa atoobu ilayh', meaning:'I seek forgiveness from Allah, besides Whom there is none worthy of worship, the Ever-Living, the Eternal, and I repent to Him.' },
+  anxiety: { title: "For Anxiety / Worry", ar:'اَللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ', bn:'আল্লাহুম্মা ইন্নি আউযু বিকা মিনাল হাম্মি ওয়াল হাযান', en:'Allahumma innee a\'oodhu bika minal-hammi wal-hazan', meaning:'O Allah, I seek refuge in You from worry and grief.' },
+  knowledge: { title: "For Knowledge", ar:'رَبِّ زِدْنِي عِلْمًا', bn:'রব্বি যিদনী ইলমা', en:'Rabbi zidni \'ilma', meaning:'My Lord, increase me in knowledge. (Surah Ta-Ha 20:114)' },
+  dua_parents: { title: "For Parents", ar:'رَبِّ اغْفِرْ لِي وَلِوَالِدَيَّ', bn:'রব্বিগফিরলী ওয়ালিওয়ালিদাইয়্যা', en:'Rabbigh-fir lee wa li-waalidayya', meaning:'My Lord, forgive me and my parents.' }
+};
+
+function initDuaDropdown() {
+  const opts = Object.keys(DUA_DB).map(k=>`<option value="${k}">${DUA_DB[k].title}</option>`).join('');
+  document.getElementById('dua-select-container').innerHTML = `<select class="modern-select" id="dua-select" onchange="showDua(this.value)"><option value="">— Select a Du'a —</option>${opts}</select>`;
+}
+
+function showDua(key){
+  const box=document.getElementById('dua-display');
+  if(!key){box.style.display='none';return;}
+  const d=DUA_DB[key];
+  if(!d){box.style.display='none';return;}
+  document.getElementById('dua-arabic').textContent=d.ar;
+  document.getElementById('dua-bangla').textContent=d.bn;
+  document.getElementById('dua-english').textContent=d.en;
+  document.getElementById('dua-meaning').textContent='📖 '+d.meaning;
+  box.style.display='block';
+}
+
+// ── PRIORITIES ────────────────────────────────────────────────────
+function initPriorities(){ const c=document.getElementById('priorities-list'); c.innerHTML=''; const saved=load('priorities',['','','']); for(let i=0;i<3;i++){const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px;'; row.innerHTML=`<div style="width:24px;height:24px;border-radius:7px;background:#1a6b72;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div><input class="inp text-navy" placeholder="Priority ${i+1}..." value="${saved[i]||''}" oninput="savePriority(${i},this.value)"/>`; c.appendChild(row);} }
+function savePriority(i,val){ const p=load('priorities',['','','']); p[i]=val; save('priorities',p); }
+
+// ── SCHEDULE ──────────────────────────────────────────────────────
+const DEFAULT_SCHED=[{time:'4:30 AM',label:'Tahajjud / Fajr',notes:''},{time:'5:00–8:00 AM',label:'Morning Routine',notes:''},{time:'8:00–9:30 AM',label:'Work – Deep Focus',notes:''},{time:'12:00 PM',label:'Dhuhr Prayer',notes:''},{time:'12:15–1:00 PM',label:'Lunch Break',notes:''},{time:'3:30 PM',label:'Asr Prayer',notes:''},{time:'7:00 PM',label:'Maghrib Prayer',notes:''},{time:'9:00 PM',label:'Isha Prayer',notes:''},{time:'10:50 PM',label:'Sleep',notes:''}];
+function initSchedule(){ const c=document.getElementById('schedule-blocks'); c.innerHTML=''; const rows=load('scheduleRows',DEFAULT_SCHED); const card=document.createElement('div'); card.className='card'; card.style.padding='12px'; const hdr=document.createElement('div'); hdr.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 28px;gap:6px;margin-bottom:6px;'; hdr.innerHTML='<div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">TIME</div><div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">TASK</div><div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">NOTES</div><div></div>'; card.appendChild(hdr); const rc=document.createElement('div'); rc.id='sched-rows-inner'; card.appendChild(rc); const ab=document.createElement('button'); ab.className='btn'; ab.style.cssText='font-size:12px;color:#1a6b72;background:none;border:1px dashed #1a6b72;width:100%;margin-top:8px;'; ab.textContent='+ Add row'; ab.onclick=()=>{const r=load('scheduleRows',DEFAULT_SCHED);r.push({time:'',label:'',notes:''});save('scheduleRows',r);renderSchedRow(rc,r,r.length-1);}; card.appendChild(ab); c.appendChild(card); rows.forEach((_,i)=>renderSchedRow(rc,rows,i)); }
+function renderSchedRow(container,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.id='sched-row-'+i; row.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:11px;padding:5px 6px;color:#1a6b72;font-weight:600;" placeholder="Time..." value="${r.time||''}" oninput="saveSchedField(${i},'time',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Task..." value="${r.label||''}" oninput="saveSchedField(${i},'label',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Notes..." value="${r.notes||''}" oninput="saveSchedField(${i},'notes',this.value)"/><button onclick="deleteSchedRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; container.appendChild(row); }
+function saveSchedField(i,f,v){ const r=load('scheduleRows',DEFAULT_SCHED); if(!r[i]) r[i]={time:'',label:'',notes:''}; r[i][f]=v; save('scheduleRows',r); }
+function deleteSchedRow(i){ const r=load('scheduleRows',DEFAULT_SCHED); r.splice(i,1); save('scheduleRows',r); document.getElementById('schedule-blocks').innerHTML=''; initSchedule(); }
+
+// ── TODOS ─────────────────────────────────────────────────────────
+function initTodos(){ const c=document.getElementById('todo-list'); c.innerHTML=''; const todos=load('todos',Array(6).fill({text:'',done:false})); todos.forEach((t,i)=>{const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;'; row.innerHTML=`<div class="cb" id="todo-cb-${i}" style="border-color:#1a6b72;" onclick="toggleTodo(${i})"></div><input class="inp text-navy" id="todo-inp-${i}" placeholder="Task ${i+1}..." value="${t.text||''}" style="text-decoration:${t.done?'line-through':'none'};color:${t.done?'#6b7a8d':''};" oninput="saveTodo(${i},'text',this.value)"/>`; c.appendChild(row); if(t.done) renderCb('todo-cb-'+i,true,'#1a6b72'); }); }
+function toggleTodo(i){ const t=load('todos',Array(6).fill({text:'',done:false})); t[i]={...t[i],done:!t[i].done}; save('todos',t); renderCb('todo-cb-'+i,t[i].done,'#1a6b72'); const inp=document.getElementById('todo-inp-'+i); inp.style.textDecoration=t[i].done?'line-through':'none'; inp.classList.toggle('text-navy',!t[i].done); inp.style.color=t[i].done?'#6b7a8d':''; }
+function saveTodo(i,f,v){ const t=load('todos',Array(6).fill({text:'',done:false})); t[i]={...t[i],[f]:v}; save('todos',t); }
+
+// ── WATER & BEVERAGES ─────────────────────────────────────────────
+function initWater(){ const c=document.getElementById('water-drops'); c.innerHTML=''; const w=load('water',0); for(let i=0;i<8;i++){const s=document.createElement('span'); s.textContent='💧'; s.style.cssText='font-size:26px;cursor:pointer;transition:opacity 0.15s;'; s.style.opacity=i<w?'1':'0.25'; s.onclick=()=>{const cur=load('water',0);const nw=i<cur?i:i+1;save('water',nw);refreshWater(nw);}; c.appendChild(s);} refreshWater(w); }
+function refreshWater(w){ document.querySelectorAll('#water-drops span').forEach((d,i)=>d.style.opacity=i<w?'1':'0.25'); document.getElementById('water-label').textContent=`${w} / 8 glasses · ${w*250}ml`; save('water',w); }
+let caffeineVal=0; let teaVal=0;
+function adjCaffeine(d){ caffeineVal=Math.max(0,caffeineVal+d); document.getElementById('caffeine-val').textContent=caffeineVal; save('caffeine',caffeineVal); }
+function adjTea(d){ teaVal=Math.max(0,teaVal+d); document.getElementById('tea-val').textContent=teaVal; save('tea',teaVal); }
+
+// ── BMI CALCULATOR ────────────────────────────────────────────────
+function calcBMI() {
+  const h = parseFloat(document.getElementById('bmi-h').value) / 100;
+  const w = parseFloat(document.getElementById('bmi-w').value);
+  if(!h || !w) return;
+  const bmi = (w / (h * h)).toFixed(1);
+  let cat = "", color = "";
+  if(bmi < 18.5) { cat = "Underweight"; color = "#c8a84b"; }
+  else if(bmi < 24.9) { cat = "Normal"; color = "#1e8a4a"; }
+  else if(bmi < 29.9) { cat = "Overweight"; color = "#c0392b"; }
+  else { cat = "Obese"; color = "#c0392b"; }
+  const recW_min = (18.5 * h * h).toFixed(1);
+  const recW_max = (24.9 * h * h).toFixed(1);
+
+  const isDark = document.body.classList.contains('dark-mode');
+  const bg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+  const border = isDark ? '#30363d' : '#ddd8ce';
+
+  document.getElementById('bmi-result').style.display = 'block';
+  document.getElementById('bmi-result').innerHTML = `
+    <div style="background:${bg}; padding:12px; border-radius:8px; border:1px solid ${border};">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:var(--muted);">Your BMI:</span>
+        <span style="font-size:20px; font-weight:800; color:${color};">${bmi}</span>
+      </div>
+      <div style="font-size:14px; font-weight:600; color:${color}; margin-bottom:8px; text-align:right;">${cat}</div>
+      <div style="font-size:11px; color:var(--muted); border-top:1px solid ${border}; padding-top:8px;">
+        Recommended weight range: <strong>${recW_min} - ${recW_max} kg</strong>
+      </div>
+    </div>
+  `;
+}
+
+// ── MEALS ─────────────────────────────────────────────────────────
+function initMeals(){ const c=document.getElementById('meal-inputs'); c.innerHTML=''; const meals=['breakfast','lunch','dinner','snacks']; const saved=load('meals',{}); meals.forEach(m=>{const wrap=document.createElement('div'); wrap.style.marginBottom='8px'; wrap.innerHTML=`<div style="font-size:11px;color:#6b7a8d;margin-bottom:3px;text-transform:capitalize;">${m}</div><input class="inp text-navy" placeholder="What did you have for ${m}?" value="${saved[m]||''}" oninput="saveMeal('${m}',this.value)"/>`; c.appendChild(wrap);}); }
+function saveMeal(m,v){ const meals=load('meals',{}); meals[m]=v; save('meals',meals); }
+
+// ── MONEY ─────────────────────────────────────────────────────────
+function initMoney(){ renderIncRows(); renderExpRows(); renderSadRows(); updateBalance(); }
+function renderIncRows(){ const c=document.getElementById('income-rows'); c.innerHTML=''; const inc=load('income',[{amt:'',from:''}]); inc.forEach((_,i)=>renderIncRow(c,inc,i)); }
+function renderIncRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${r.amt||''}" oninput="saveMRow('income',${i},'amt',this.value)"/><input class="inp" placeholder="Source" value="${r.from||''}" oninput="saveMRow('income',${i},'from',this.value)"/><button onclick="deleteMRow('income',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function renderExpRows(){ const c=document.getElementById('expense-rows'); c.innerHTML=''; const exp=load('expenses',[{amt:'',from:'Transport'},{amt:'',from:'Food'},{amt:'',from:''},{amt:'',from:''}]); exp.forEach((_,i)=>renderExpRow(c,exp,i)); }
+function renderExpRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${r.amt||''}" oninput="saveMRow('expenses',${i},'amt',this.value)"/><input class="inp" placeholder="Category" value="${r.from||''}" oninput="saveMRow('expenses',${i},'from',this.value)"/><button onclick="deleteMRow('expenses',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function renderSadRows(){ const c=document.getElementById('sadaqah-rows'); c.innerHTML=''; const sad=load('sadaqah',[{amt:'',from:''}]); sad.forEach((_,i)=>renderSadRow(c,sad,i)); }
+function renderSadRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${r.amt||''}" oninput="saveMRow('sadaqah',${i},'amt',this.value)"/><input class="inp" placeholder="Cause / recipient" value="${r.from||''}" oninput="saveMRow('sadaqah',${i},'from',this.value)"/><button onclick="deleteMRow('sadaqah',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function saveMRow(type,i,f,v){ const a=load(type,[]); if(!a[i]) a[i]={amt:'',from:''}; a[i][f]=v; save(type,a); updateBalance(); }
+function deleteMRow(type,i){ const a=load(type,[]); a.splice(i,1); save(type,a); if(type==='income') renderIncRows(); else if(type==='expenses') renderExpRows(); else renderSadRows(); updateBalance(); }
+function addIncomeRow(){ const inc=load('income',[]); inc.push({amt:'',from:''}); save('income',inc); renderIncRows(); }
+function addExpenseRow(){ const exp=load('expenses',[]); exp.push({amt:'',from:''}); save('expenses',exp); renderExpRows(); }
+function addSadaqahRow(){ const sad=load('sadaqah',[]); sad.push({amt:'',from:''}); save('sadaqah',sad); renderSadRows(); }
+function updateBalance(){ const inc=load('income',[]), exp=load('expenses',[]), sad=load('sadaqah',[]); const tIn=inc.reduce((a,r)=>a+(+r.amt||0),0), tOut=exp.reduce((a,r)=>a+(+r.amt||0),0), tSad=sad.reduce((a,r)=>a+(+r.amt||0),0); const running=gLoad('runningBalance',0); const bal=running+tIn-tOut; document.getElementById('total-in').textContent='Total in: ৳'+tIn.toLocaleString(); document.getElementById('total-out').textContent='Total out: ৳'+tOut.toLocaleString(); document.getElementById('total-sadaqah').textContent='Given today: ৳'+tSad.toLocaleString(); const bv=document.getElementById('balance-val'); bv.textContent=(bal>=0?'+':'')+'৳'+bal.toLocaleString(); bv.style.color=bal>=0?'#1e8a4a':'#c0392b'; const bc=document.getElementById('balance-card'); bc.style.background=bal>=0?'rgba(30,138,74,0.06)':'rgba(192,57,43,0.06)'; bc.style.borderColor=bal>=0?'#1e8a4a44':'#c0392b44'; }
+function resetRunningBalance(){
+  if(!confirm('Reset your net balance to ৳0? This clears the carried-over total from previous days (today\'s income/expense entries stay).')) return;
+  gSave('runningBalance',0);
+  updateBalance();
+}
+
+// ── READING ───────────────────────────────────────────────────────
+function initReading(){ renderQuranRows(); renderHadithRows(); renderBookRows(); if(new Date().getDay()===5){const el=document.getElementById('kahf-remind-reading');if(el) el.style.display='block';} }
+function renderQuranRows(){ const c=document.getElementById('quran-rows'); c.innerHTML=''; const rows=gLoad('quranRows',[{surah:'',from:'',to:''}]); rows.forEach((_,i)=>renderQRow(c,rows,i)); }
+function renderQRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 80px 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Surah" value="${r.surah||''}" oninput="saveQField(${i},'surah',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="From" value="${r.from||''}" oninput="saveQField(${i},'from',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="To" value="${r.to||''}" oninput="saveQField(${i},'to',this.value)"/><button onclick="deleteQRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function saveQField(i,f,v){ const r=gLoad('quranRows',[{surah:'',from:'',to:''}]); if(!r[i]) r[i]={surah:'',from:'',to:''}; r[i][f]=v; gSave('quranRows',r); }
+function addQuranRow(){ const r=gLoad('quranRows',[{surah:'',from:'',to:''}]); r.push({surah:'',from:'',to:''}); gSave('quranRows',r); renderQuranRows(); }
+function deleteQRow(i){ const r=gLoad('quranRows',[]); r.splice(i,1); gSave('quranRows',r); renderQuranRows(); }
+function renderHadithRows(){ const c=document.getElementById('hadith-rows'); c.innerHTML=''; const rows=gLoad('hadithRows',[{collection:'',num:''}]); rows.forEach((_,i)=>renderHRow(c,rows,i)); }
+function renderHRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:1fr 90px 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Collection" value="${r.collection||''}" oninput="saveHField(${i},'collection',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="# e.g. 54" value="${r.num||''}" oninput="saveHField(${i},'num',this.value)"/><button onclick="deleteHRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function saveHField(i,f,v){ const r=gLoad('hadithRows',[{collection:'',num:''}]); if(!r[i]) r[i]={collection:'',num:''}; r[i][f]=v; gSave('hadithRows',r); }
+function addHadithRow(){ const r=gLoad('hadithRows',[{collection:'',num:''}]); r.push({collection:'',num:''}); gSave('hadithRows',r); renderHadithRows(); }
+function deleteHRow(i){ const r=gLoad('hadithRows',[]); r.splice(i,1); gSave('hadithRows',r); renderHadithRows(); }
+function renderBookRows(){ const c=document.getElementById('book-rows'); c.innerHTML=''; const books=gLoad('bookRows',[{title:'',total:'',read:''}]); books.forEach((_,i)=>renderBRow(c,books,i)); }
+function renderBRow(c,books,i){ 
+  const b=books[i]; 
+  const pct=b.total>0?Math.min(100,Math.round((+b.read||0)/(+b.total)*100)):0; 
+  const cb=pct>=100?'#1e8a4a':'#1a6b72'; 
+  const wrap=document.createElement('div'); 
+  wrap.id='book-row-'+i; 
+  wrap.className='book-row'; // Switched inline CSS to dynamic class for Dark Mode
+  wrap.innerHTML=`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <input class="inp text-navy" style="font-size:13px;font-weight:600;padding:5px 8px;flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);" placeholder="Book title..." value="${b.title||''}" oninput="saveBField(${i},'title',this.value)"/>
+      <button onclick="deleteBRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;flex-shrink:0;">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Total pages</div>
+        <input class="inp text-navy" type="number" style="font-size:12px;padding:5px 8px;" placeholder="e.g. 320" value="${b.total||''}" oninput="saveBField(${i},'total',this.value);updateBookBar(${i})"/>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Pages read today</div>
+        <input class="inp text-navy" type="number" style="font-size:12px;padding:5px 8px;" placeholder="e.g. 24" value="${b.read||''}" oninput="saveBField(${i},'read',this.value);updateBookBar(${i})"/>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;height:8px;background:#e0ddd7;border-radius:99px;overflow:hidden;">
+        <div id="book-bar-${i}" style="height:100%;border-radius:99px;background:${cb};width:${pct}%;transition:width 0.4s;"></div>
+      </div>
+      <span id="book-pct-${i}" style="font-size:12px;font-weight:700;color:${cb};min-width:36px;text-align:right;">${pct}%</span>
+    </div>`; 
+  c.appendChild(wrap); 
+}
+function saveBField(i,f,v){ const b=gLoad('bookRows',[{title:'',total:'',read:''}]); if(!b[i]) b[i]={title:'',total:'',read:''}; b[i][f]=v; gSave('bookRows',b); }
+function updateBookBar(i){ const b=gLoad('bookRows',[]); const bk=b[i]||{}; const pct=bk.total>0?Math.min(100,Math.round((+bk.read||0)/(+bk.total)*100)):0; const cb=pct>=100?'#1e8a4a':'#1a6b72'; const bar=document.getElementById('book-bar-'+i),lbl=document.getElementById('book-pct-'+i); if(bar){bar.style.width=pct+'%';bar.style.background=cb;} if(lbl){lbl.textContent=pct+'%';lbl.style.color=cb;} }
+function addBookRow(){ const b=gLoad('bookRows',[]); b.push({title:'',total:'',read:''}); gSave('bookRows',b); renderBookRows(); }
+function deleteBRow(i){ const b=gLoad('bookRows',[]); b.splice(i,1); gSave('bookRows',b); renderBookRows(); }
+
+// ── WEEKLY SUMMARY ────────────────────────────────────────────────
+function initWeeklySummary(){
+  const c=document.getElementById('weekly-summary'); c.innerHTML='';
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const sP=['F','D','A','M','I'];
+  let wPT=0,wC=0;
+  for(let i=6;i>=0;i--){
+    const d=new Date(TODAY); d.setDate(d.getDate()-i);
+    const dk=dateKey(d), isTod=dk===dateKey(TODAY);
+    const pf=isTod?'':dk+'_';
+    const sd=(()=>{try{const v=localStorage.getItem(pf+'salahData');return v?JSON.parse(v):{};}catch(e){return{};}})();
+    const done=PRAYERS.filter(p=>sd[p+'_fard']===true).length;
+    wPT+=done; if(done===5) wC++;
+    const isFut=d>TODAY;
+    const row=document.createElement('div'); row.className='week-row';
+    row.innerHTML=`<div class="week-day">${dayNames[d.getDay()]}</div><div class="week-prayers">${PRAYERS.map((p,pi)=>`<div class="wp-dot ${sd[p+'_fard']?'done':'miss'}" style="${isFut?'opacity:0.3;':''}">${sP[pi]}</div>`).join('')}</div><div class="week-stat">${isFut?'–':done+'/5'}</div>`;
+    c.appendChild(row);
+  }
+  const sum=document.createElement('div'); sum.style.cssText='margin-top:10px;padding-top:8px;border-top:1px solid #f0ece4;display:flex;justify-content:space-between;font-size:12px;';
+  sum.innerHTML=`<span style="color:var(--muted);">This week: <strong style="color:#1a6b72;">${wPT}/35</strong></span><span style="color:var(--muted);">${wC} complete days 🟩</span>`;
+  c.appendChild(sum);
+}
+
+function initMonthlySummary(){
+  const c=document.getElementById('monthly-summary'); c.innerHTML='';
+  const y=TODAY.getFullYear(), m=TODAY.getMonth();
+  const daysElapsed=TODAY.getDate();
+  let salahDone=0, completeDays=0, tasbeehTotal=0, sadaqahTotal=0, fastDays=0;
+  for(let day=1; day<=daysElapsed; day++){
+    const d=new Date(y,m,day);
+    const dk=dateKey(d), isTod=dk===dateKey(TODAY);
+    const pf=isTod?'':dk+'_';
+    try{ const v=localStorage.getItem(pf+'salahData'); const sd=v?JSON.parse(v):{}; const done=PRAYERS.filter(p=>sd[p+'_fard']===true).length; salahDone+=done; if(done===5) completeDays++; }catch(e){}
+    try{ const v=localStorage.getItem(pf+'dhikr'); const dh=v?JSON.parse(v):{}; tasbeehTotal+=Object.values(dh).reduce((a,n)=>a+(+n||0),0); }catch(e){}
+    try{ const v=localStorage.getItem(pf+'sadaqah'); const sa=v?JSON.parse(v):[]; sadaqahTotal+=(sa||[]).reduce((a,r)=>a+(+r.amt||0),0); }catch(e){}
+    try{ if(localStorage.getItem(pf+'fast_mon')==='true' || localStorage.getItem(pf+'fast_thu')==='true') fastDays++; }catch(e){}
+  }
+  const qRows=gLoad('quranRows',[]).filter(r=>r.surah||r.from||r.to).length;
+  const hRows=gLoad('hadithRows',[]).filter(r=>r.collection||r.num).length;
+  const readingEntries=qRows+hRows;
+  const salahSlots=daysElapsed*5;
+  const salahPct=salahSlots>0?Math.round((salahDone/salahSlots)*100):0;
+  const monthName=TODAY.toLocaleDateString('en-US',{month:'long'});
+  const stats=[
+    {label:'Salah Consistency',value:salahPct+'%',sub:salahDone+'/'+salahSlots+' prayers',color:'#1a6b72'},
+    {label:'Complete Days',value:completeDays,sub:'of '+daysElapsed+' days',color:'#1e8a4a'},
+    {label:'Tasbeeh Count',value:tasbeehTotal.toLocaleString(),sub:'dhikr this month',color:'#c8a84b'},
+    {label:'Sadaqah Given',value:'৳'+sadaqahTotal.toLocaleString(),sub:'this month',color:'#c8a84b'},
+    {label:'Reading Log',value:readingEntries,sub:'Qur\u2019an + Hadith entries',color:'#22919b'},
+    {label:'Fasting Days',value:fastDays,sub:'this month',color:'#1e8a4a'},
+  ];
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;';
+  grid.innerHTML=stats.map(s=>`<div style="padding:10px;border-radius:10px;background:rgba(26,107,114,0.06);text-align:center;">
+    <div style="font-size:18px;font-weight:800;color:${s.color};">${s.value}</div>
+    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">${s.label}</div>
+    <div style="font-size:10px;color:var(--muted);margin-top:1px;">${s.sub}</div>
+  </div>`).join('');
+  c.appendChild(grid);
+  const foot=document.createElement('div');
+  foot.style.cssText='margin-top:10px;text-align:center;font-size:11px;color:var(--muted);';
+  foot.textContent=monthName+' '+y+' · updated daily';
+  c.appendChild(foot);
+}
+
+// ── CALENDAR BAR ──────────────────────────────────────────────────
+let calViewYear=TODAY.getFullYear(), calViewMonth=TODAY.getMonth(), selectedDateKey=dateKey(TODAY);
+let calRenderedYear=null, calRenderedMonth=null;
+function renderCalBar(){
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  document.getElementById('cal-month-label').textContent=months[calViewMonth]+' '+calViewYear;
+  const todayBtn=document.getElementById('cal-today-btn');
+  const isCurrentMonth=calViewYear===TODAY.getFullYear()&&calViewMonth===TODAY.getMonth();
+  todayBtn.style.display=(selectedDateKey===dateKey(TODAY)&&isCurrentMonth)?'none':'block';
+  const scroll=document.getElementById('cal-days-scroll');
+  const sameMonth = calRenderedYear===calViewYear && calRenderedMonth===calViewMonth && scroll.childElementCount>0;
+
+  if(sameMonth){
+    // Just update selection/today classes in place — no rebuild, no scroll reset.
+    Array.from(scroll.children).forEach(el=>{
+      const dk=el.dataset.dk;
+      const isSel=dk===selectedDateKey;
+      el.classList.toggle('selected',isSel);
+      if(isSel) el.scrollIntoView({inline:'center',behavior:'smooth',block:'nearest'});
+    });
+    return;
+  }
+
+  calRenderedYear=calViewYear; calRenderedMonth=calViewMonth;
+  scroll.innerHTML='';
+  const daysInMonth=new Date(calViewYear,calViewMonth+1,0).getDate();
+  for(let d=1;d<=daysInMonth;d++){
+    const date=new Date(calViewYear,calViewMonth,d);
+    const dk=dateKey(date);
+    const isToday=dk===dateKey(TODAY);
+    const isSel=dk===selectedDateKey;
+    const isFuture=date>TODAY;
+    const el=document.createElement('div');
+    el.dataset.dk=dk;
+    el.className='cal-day'+(isToday?' today':'')+(isSel?' selected':'')+(isFuture?' future':'');
+    el.innerHTML=`<div class="cal-day-name">${dayNames[date.getDay()]}</div><div class="cal-day-num">${d}</div><div class="cal-dot"></div>`;
+    if(!isFuture) el.onclick=()=>selectCalDate(dk,date);
+    scroll.appendChild(el);
+    if(isSel) setTimeout(()=>el.scrollIntoView({inline:'center',behavior:'smooth'}),50);
+  }
+}
+function selectCalDate(dk,date){
+  selectedDateKey=dk;
+  const isToday=dk===dateKey(TODAY);
+  const banner=document.getElementById('cal-viewing-banner');
+  if(isToday){banner.style.display='none';}
+  else{ const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; const months=['January','February','March','April','May','June','July','August','September','October','November','December']; banner.style.display='block'; banner.textContent=`📅 Viewing ${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`; }
+  setStoragePrefix(dk); reloadAllForDate(); renderCalBar(); updateDailyDateHeader(date);
+}
+function calShiftMonth(dir){ calViewMonth+=dir; if(calViewMonth>11){calViewMonth=0;calViewYear++;} if(calViewMonth<0){calViewMonth=11;calViewYear--;} renderCalBar(); }
+function goToToday(){ calViewYear=TODAY.getFullYear(); calViewMonth=TODAY.getMonth(); selectCalDate(dateKey(TODAY),TODAY); }
+
+// ── RELOAD ALL FOR DATE ───────────────────────────────────────────
+function reloadAllForDate(){
+  ['energy-sliders','mood-picker','weather-picker','salah-tbody','qada-per-prayer','tasbeeh-rows','todo-list','water-drops','meal-inputs','priorities-list','schedule-blocks','income-rows','expense-rows','sadaqah-rows','quran-rows','hadith-rows','book-rows'].forEach(id=>document.getElementById(id).innerHTML='');
+  initPickers(); initEnergy(); initTextFields(); initSalah(); initQada(); initTasbeeh(); initFasts(); initAdhkar(); initPriorities(); initSchedule(); initTodos(); initWater();
+  caffeineVal=load('caffeine',0); document.getElementById('caffeine-val').textContent=caffeineVal;
+  teaVal=load('tea',0); document.getElementById('tea-val').textContent=teaVal;
+  initResistance(); initMeals(); initMoney(); initReading(); initWeeklySummary(); initMonthlySummary(); initQuoteOfDay(); initDuaDropdown();
+}
+
+window.onload=function(){
+  migrateDailyData();
+  applyDarkMode(gLoad('darkMode',false));
+  processQadaAutoTracking();
+  initDates();
+  loadPrayerTimes();
+  renderCalBar();
+  reloadAllForDate();
+  cloudInit();
+};
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
+</script>
+</body>
+</html>
