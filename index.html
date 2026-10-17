@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#0f1f3d"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="Planner"/>
+<meta name="apple-mobile-web-app-title" content="My Planner"/>
 <link rel="manifest" href="manifest.json"/>
 <link rel="icon" href="icon-192.png"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
-<title>Muslim Daily Planner</title>
+<title>My Planner</title>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
@@ -200,7 +200,7 @@ body.dark-mode .cal-day-num { color: #e6edf3; }
     <div style="display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
         <div class="bismillah">بسم الله الرحمن الرحيم</div>
-        <div class="header-title">Muslim Daily Planner</div>
+        <div class="header-title">My Planner</div>
         <div class="header-dates">
           <div class="header-hijri" id="hijri-date"></div>
           <div style="color:rgba(255,255,255,0.25);font-size:11px;">·</div>
@@ -343,7 +343,10 @@ body.dark-mode .cal-day-num { color: #e6edf3; }
   <div class="card" style="border-color:#c8a84b44;">
     <div class="card-title" style="color:#c8a84b;">Tasbeeh Counter</div>
     <div id="tasbeeh-rows"></div>
-    <button class="btn text-navy" style="margin-top:10px;width:100%;background:var(--cream);border:1px solid var(--border);" onclick="resetAllTasbeeh()">Reset All Counts</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+      <button class="btn text-navy" style="width:100%;background:var(--cream);border:1px solid var(--border);" onclick="resetThisTasbeeh()">Reset This</button>
+      <button class="btn text-navy" style="width:100%;background:var(--cream);border:1px solid var(--border);" onclick="resetAllTasbeeh()">Reset All</button>
+    </div>
   </div>
 
   <div class="card">
@@ -500,7 +503,7 @@ body.dark-mode .cal-day-num { color: #e6edf3; }
     <div class="card-title">BMI Calculator</div>
     <div class="grid2">
        <select class="modern-select" id="bmi-gender"><option value="male">Male</option><option value="female">Female</option></select>
-       <input type="number" class="inp" id="bmi-age" placeholder="Age" value="20"/>
+       <input type="number" class="inp" id="bmi-age" placeholder="Age"/>
     </div>
     <div class="grid2" style="margin-top:8px;">
        <input type="number" class="inp" id="bmi-h" placeholder="Height (cm)"/>
@@ -758,7 +761,7 @@ function cloudPullAndMerge(){
 // opened again until a later day, that un-prefixed data actually belongs to
 // the last day it was opened, not the new "today" — so we archive it under
 // its real date before anything else reads or writes today's blank keys.
-const DAILY_KEYS = ['activeTasbeeh','adhkar_evening','adhkar_morning','caffeine','dhikr','dhikrTarget','dua','exMins','expenses','fast_mon','fast_thu','gratitude','income','meals','mood','notes','priorities','reflection','reminder','resistance','resTriggers','restedness','sadaqah','salahData','scheduleRows','screenTime','sleepTime','steps','tea','todayQada','todos','tomorrow','wakeTime','water','weather','win','workout','energyMorn','energyPost','energyNight'];
+const DAILY_KEYS = ['activeTasbeeh','adhkar_evening','adhkar_morning','caffeine','dhikr','dhikrRound','dhikrTarget','dua','exMins','expenses','fast_mon','fast_thu','gratitude','income','meals','mood','notes','priorities','reflection','reminder','resistance','resTriggers','restedness','sadaqah','salahData','scheduleRows','screenTime','sleepTime','steps','tea','todayQada','todos','tomorrow','wakeTime','water','weather','win','workout','energyMorn','energyPost','energyNight'];
 function migrateDailyData(){
   const todayKey=dateKey(TODAY);
   const lastKey=gLoad('lastOpenDate',todayKey);
@@ -1570,11 +1573,12 @@ const TG_TARGETS=[7,33,50,100];
 const TR=65, TC=2*Math.PI*TR;
 let activeTKey='sub';
 
+function loadRound(){ const r=load('dhikrRound',null); return r!==null?r:load('dhikr',{}); }
 function initTasbeeh(){ activeTKey=load('activeTasbeeh','sub'); renderTasbeehUI(); }
 
 function renderTasbeehUI(){
   const c=document.getElementById('tasbeeh-rows'); c.innerHTML='';
-  const counts=load('dhikr',{}), targets=load('dhikrTarget',{});
+  const counts=loadRound(), targets=load('dhikrTarget',{});
   const active=TASBEEH_LIST.find(t=>t.key===activeTKey)||TASBEEH_LIST[0];
   const cnt=counts[active.key]||0, tgt=targets[active.key]||active.def;
   const pct=Math.min(1,cnt/tgt), offset=TC*(1-pct);
@@ -1637,13 +1641,14 @@ function renderTasbeehDailyReport(){
 
 function selectTasbeeh(key){ activeTKey=key; save('activeTasbeeh',key); renderTasbeehUI(); }
 function incActiveTasbeeh(){
-  const counts=load('dhikr',{}), targets=load('dhikrTarget',{});
+  const counts=load('dhikr',{}), rounds=loadRound(), targets=load('dhikrTarget',{});
   const key=activeTKey;
   const tgt=targets[key]||TASBEEH_LIST.find(t=>t.key===key)?.def||33;
-  const cur=counts[key]||0;
+  const cur=rounds[key]||0;
   if(cur>=tgt) return; // cap at target
-  counts[key]=cur+1; save('dhikr',counts);
-  const cnt=counts[key], pct=Math.min(1,cnt/tgt), offset=TC*(1-pct);
+  rounds[key]=cur+1; save('dhikrRound',rounds);
+  counts[key]=(counts[key]||0)+1; save('dhikr',counts); // report keeps its own running total
+  const cnt=rounds[key], pct=Math.min(1,cnt/tgt), offset=TC*(1-pct);
   const ringC=cnt>=tgt?'#1e8a4a':'#c8a84b', numC=cnt>=tgt?'#1e8a4a':'#1a6b72';
   const ring=document.getElementById('t-ring'), countEl=document.getElementById('t-count');
   if(ring){ring.style.strokeDashoffset=offset;ring.style.stroke=ringC;}
@@ -1655,7 +1660,8 @@ function incActiveTasbeeh(){
   renderTasbeehDailyReport();
 }
 function setActiveTarget(n){ const t=load('dhikrTarget',{}); t[activeTKey]=n; save('dhikrTarget',t); renderTasbeehUI(); }
-function resetAllTasbeeh(){ save('dhikr',{}); renderTasbeehUI(); }
+function resetThisTasbeeh(){ const r=loadRound(); r[activeTKey]=0; save('dhikrRound',r); renderTasbeehUI(); }
+function resetAllTasbeeh(){ if(!confirm('Reset all counters AND today\'s report?')) return; save('dhikr',{}); save('dhikrRound',{}); renderTasbeehUI(); }
 
 // ── FASTS ─────────────────────────────────────────────────────────
 function toggleFast(day){ 
@@ -1739,7 +1745,7 @@ function calcBMI() {
   let cat = "", color = "";
   if(bmi < 18.5) { cat = "Underweight"; color = "#c8a84b"; }
   else if(bmi < 24.9) { cat = "Normal"; color = "#1e8a4a"; }
-  else if(bmi < 29.9) { cat = "Overweight"; color = "#c0392b"; }
+  else if(bmi < 29.9) { cat = "Overweight"; color = "#e67e22"; }
   else { cat = "Obese"; color = "#c0392b"; }
   const recW_min = (18.5 * h * h).toFixed(1);
   const recW_max = (24.9 * h * h).toFixed(1);
@@ -1800,10 +1806,12 @@ function saveHField(i,f,v){ const r=gLoad('hadithRows',[{collection:'',num:''}])
 function addHadithRow(){ const r=gLoad('hadithRows',[{collection:'',num:''}]); r.push({collection:'',num:''}); gSave('hadithRows',r); renderHadithRows(); }
 function deleteHRow(i){ const r=gLoad('hadithRows',[]); r.splice(i,1); gSave('hadithRows',r); renderHadithRows(); }
 function renderBookRows(){ const c=document.getElementById('book-rows'); c.innerHTML=''; const books=gLoad('bookRows',[{title:'',total:'',read:''}]); books.forEach((_,i)=>renderBRow(c,books,i)); }
+// red (0%) -> orange -> yellow -> green (100%)
+function pctColor(p){ return 'hsl('+Math.round(Math.max(0,Math.min(100,p))*1.2)+',72%,40%)'; }
 function renderBRow(c,books,i){ 
   const b=books[i]; 
   const pct=b.total>0?Math.min(100,Math.round((+b.read||0)/(+b.total)*100)):0; 
-  const cb=pct>=100?'#1e8a4a':'#1a6b72'; 
+  const cb=pctColor(pct); 
   const wrap=document.createElement('div'); 
   wrap.id='book-row-'+i; 
   wrap.className='book-row'; // Switched inline CSS to dynamic class for Dark Mode
@@ -1818,7 +1826,7 @@ function renderBRow(c,books,i){
         <input class="inp text-navy" type="number" style="font-size:12px;padding:5px 8px;" placeholder="e.g. 320" value="${b.total||''}" oninput="saveBField(${i},'total',this.value);updateBookBar(${i})"/>
       </div>
       <div>
-        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Pages read today</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Pages read</div>
         <input class="inp text-navy" type="number" style="font-size:12px;padding:5px 8px;" placeholder="e.g. 24" value="${b.read||''}" oninput="saveBField(${i},'read',this.value);updateBookBar(${i})"/>
       </div>
     </div>
@@ -1831,7 +1839,7 @@ function renderBRow(c,books,i){
   c.appendChild(wrap); 
 }
 function saveBField(i,f,v){ const b=gLoad('bookRows',[{title:'',total:'',read:''}]); if(!b[i]) b[i]={title:'',total:'',read:''}; b[i][f]=v; gSave('bookRows',b); }
-function updateBookBar(i){ const b=gLoad('bookRows',[]); const bk=b[i]||{}; const pct=bk.total>0?Math.min(100,Math.round((+bk.read||0)/(+bk.total)*100)):0; const cb=pct>=100?'#1e8a4a':'#1a6b72'; const bar=document.getElementById('book-bar-'+i),lbl=document.getElementById('book-pct-'+i); if(bar){bar.style.width=pct+'%';bar.style.background=cb;} if(lbl){lbl.textContent=pct+'%';lbl.style.color=cb;} }
+function updateBookBar(i){ const b=gLoad('bookRows',[]); const bk=b[i]||{}; const pct=bk.total>0?Math.min(100,Math.round((+bk.read||0)/(+bk.total)*100)):0; const cb=pctColor(pct); const bar=document.getElementById('book-bar-'+i),lbl=document.getElementById('book-pct-'+i); if(bar){bar.style.width=pct+'%';bar.style.background=cb;} if(lbl){lbl.textContent=pct+'%';lbl.style.color=cb;} }
 function addBookRow(){ const b=gLoad('bookRows',[]); b.push({title:'',total:'',read:''}); gSave('bookRows',b); renderBookRows(); }
 function deleteBRow(i){ const b=gLoad('bookRows',[]); b.splice(i,1); gSave('bookRows',b); renderBookRows(); }
 
@@ -1939,7 +1947,7 @@ function renderCalBar(){
     el.innerHTML=`<div class="cal-day-name">${dayNames[date.getDay()]}</div><div class="cal-day-num">${d}</div><div class="cal-dot"></div>`;
     if(!isFuture) el.onclick=()=>selectCalDate(dk,date);
     scroll.appendChild(el);
-    if(isSel) setTimeout(()=>el.scrollIntoView({inline:'center',behavior:'smooth'}),50);
+    if(isSel) setTimeout(()=>el.scrollIntoView({inline:'center',behavior:'smooth',block:'nearest'}),50);
   }
 }
 function selectCalDate(dk,date){

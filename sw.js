@@ -1,10 +1,12 @@
-const CACHE_NAME = 'muslim-planner-v1';
+const CACHE_NAME = 'muslim-planner-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './splash-192.png',
+  './splash-512.png'
 ];
 
 self.addEventListener('install', (event) => {
