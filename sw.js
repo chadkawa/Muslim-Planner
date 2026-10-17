@@ -1,4 +1,4 @@
-const CACHE_NAME = 'muslim-planner-v4';
+const CACHE_NAME = 'muslim-planner-v5';
 const CORE_ASSETS = [
   './',
   './index.html',
