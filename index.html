@@ -99,13 +99,14 @@ td{padding:10px 6px;border-top:1px solid #ddd8ce;}
 .wp-dot.miss{background:#f0ece4;color:#bbb;}
 .week-stat{font-size:11px;color:var(--muted);margin-left:auto;}
 /* prayer time card */
-.pt-window-row{display:grid;grid-template-columns:90px 1fr 1fr;align-items:center;padding:7px 0;border-bottom:1px solid #f5f2ed;}
+.pt-window-row{display:grid;grid-template-columns:86px 64px 74px 1fr;column-gap:2px;align-items:center;padding:7px 0;border-bottom:1px solid #f5f2ed;}
 .pt-window-row:last-child{border-bottom:none;}
 .pt-window-name{font-size:12px;font-weight:600;}
+.pt-window-time,.pt-window-end{white-space:nowrap;}
 .pt-window-time{font-size:11px;color:#1a6b72;font-weight:600;}
 .pt-window-end{font-size:11px;color:#6b7a8d;}
 .pt-section-head{font-size:9px;color:#c8a84b;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin:10px 0 4px;}
-.pt-forbidden-row{display:grid;grid-template-columns:90px 1fr 1fr;align-items:center;padding:5px 0;}
+.pt-forbidden-row{display:grid;grid-template-columns:86px 64px 74px 1fr;column-gap:2px;align-items:center;padding:5px 0;}
 .forbidden-badge{font-size:9px;font-weight:700;color:#c0392b;background:rgba(192,57,43,0.1);border-radius:4px;padding:1px 5px;}
 /* modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;}
@@ -145,6 +146,17 @@ body.dark-mode .divider-line { background: #30363d; }
 body.dark-mode .tip { background: rgba(255,255,255,0.05); color: #8b949e; }
 body.dark-mode .pt-window-time, body.dark-mode .pt-window-end { color: #e6edf3; }
 body.dark-mode .cal-day-num { color: #e6edf3; }
+
+.book-fade{background:#f8f6f0;}
+body.dark-mode .book-fade{background:#161b22;}
+.wp-dot.late{background:#c0392b;color:#fff;}
+.wp-dot.nosunnah{background:#e67e22;color:#fff;}
+.wp-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:10px;color:var(--muted);}
+.wp-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:baseline;}
+.wp-legend i.g{background:#cfcabf;}
+body.dark-mode .wp-legend i.g{background:#30363d;}
+.pt-timer{display:inline-flex;align-items:center;gap:5px;justify-self:end;font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.2px;padding:3px 9px;border-radius:999px;white-space:nowrap;min-height:20px;}
+.pt-dot{width:6px;height:6px;border-radius:50%;display:none;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -473,7 +485,7 @@ body.dark-mode .cal-day-num { color: #e6edf3; }
   <div class="card" style="border-color:#22919b44;">
     <div class="card-title" style="color:#22919b;">Water & Beverages</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;" id="water-drops"></div>
-    <div style="font-size:12px;color:var(--muted);" id="water-label">0 / 8 glasses</div>
+    <div style="font-size:12px;color:var(--muted);" id="water-label">0 / 3,500 ml</div>
     <div style="margin-top:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:12px;color:var(--muted);">☕ Coffee:</span>
@@ -510,7 +522,10 @@ body.dark-mode .cal-day-num { color: #e6edf3; }
        <input type="number" class="inp" id="bmi-h" placeholder="Height (cm)"/>
        <input type="number" class="inp" id="bmi-w" placeholder="Weight (kg)"/>
     </div>
-    <button class="btn" style="width:100%; margin-top:8px; background:#1a6b72; color:#fff;" onclick="calcBMI()">Calculate</button>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:8px;">
+      <button class="btn" style="width:100%; background:#1a6b72; color:#fff;" onclick="calcBMI()">Calculate</button>
+      <button class="btn text-navy" style="width:100%; background:var(--cream); border:1px solid var(--border);" onclick="clearBMI()">Clear</button>
+    </div>
     <div id="bmi-result" style="margin-top:12px; display:none;"></div>
   </div>
   <div style="text-align:center;margin-top:16px;">
@@ -599,6 +614,7 @@ function dateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStar
 function parseKey(k){ const [y,m,d]=k.split('-').map(Number); return new Date(y,m-1,d); }
 let _prefix='';
 function setStoragePrefix(dk){ _prefix=(dk===dateKey(TODAY))?'':dk+'_'; }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function save(key,val){ try{localStorage.setItem(_prefix+key,JSON.stringify(val));}catch(e){} cloudQueuePush(); }
 function load(key,def){ try{const v=localStorage.getItem(_prefix+key);return v!==null?JSON.parse(v):def;}catch(e){return def;} }
 function gSave(key,val){ try{localStorage.setItem('g_'+key,JSON.stringify(val));}catch(e){} if(key!=='cloudSyncEnabled') cloudQueuePush(); }
@@ -1225,44 +1241,118 @@ const to12=(t)=>{ if(!t||!t.includes(':')) return t; const[h,m]=t.split(':').map
 const toMin=(t)=>{ if(!t) return 0; const[h,m]=t.split(':').map(Number); return h*60+m; };
 const addMin=(t,n)=>{ let m=toMin(t)+n; m=((m%1440)+1440)%1440; const h=Math.floor(m/60),mi=m%60; return `${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`; };
 
+function fallbackPrayerTimes(date){
+  const LAT=23.4607, LNG=91.1809, TZ=6, R=Math.PI/180;
+  const sin=d=>Math.sin(d*R), cos=d=>Math.cos(d*R), tan=d=>Math.tan(d*R);
+  const asin=x=>Math.asin(x)/R, acos=x=>Math.acos(x)/R, atan2=(y,x)=>Math.atan2(y,x)/R, acot=x=>Math.atan(1/x)/R;
+  const fix=(a,b)=>{ a=a-b*Math.floor(a/b); return a<0?a+b:a; };
+  let y=date.getFullYear(), m=date.getMonth()+1; const d=date.getDate();
+  if(m<=2){ y-=1; m+=12; }
+  const A=Math.floor(y/100), B=2-A+Math.floor(A/4);
+  const jd=Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+B-1524.5-LNG/360;
+  const sun=(j)=>{ const D=j-2451545.0; const g=fix(357.529+0.98560028*D,360), q=fix(280.459+0.98564736*D,360); const L=fix(q+1.915*sin(g)+0.020*sin(2*g),360); const e=23.439-0.00000036*D; const RA=fix(atan2(cos(e)*sin(L),cos(L))/15,24); return {decl:asin(sin(e)*sin(L)), eqt:q/15-RA}; };
+  const s0=sun(jd+0.5);
+  const eq=((s0.eqt+12)%24+24)%24-12;
+  const mid=12+TZ-LNG/15-eq;
+  const ang=(angle,dir)=>{ const s=sun(jd+(mid-TZ)/24); const v=acos((-sin(angle)-sin(s.decl)*sin(LAT))/(cos(s.decl)*cos(LAT)))/15; return dir==='ccw'?mid-v:mid+v; };
+  const asr=()=>{ const s=sun(jd+(mid-TZ)/24); const a=-acot(1+tan(Math.abs(LAT-s.decl))); return ang(a,'cw'); };
+  const fajr=ang(18,'ccw'), sunrise=ang(0.833,'ccw'), sunset=ang(0.833,'cw'), isha=ang(18,'cw');
+  const midnight=fix((sunset+sunrise+24)/2,24);
+  const f=h=>{ h=fix(h+0.5/60,24); const hh=Math.floor(h), mm=Math.floor((h-hh)*60); return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'); };
+  return {Fajr:f(fajr),Sunrise:f(sunrise),Dhuhr:f(mid),Asr:f(asr()+1/60),Maghrib:f(sunset),Isha:f(isha),Midnight:f(midnight)};
+}
+
+
+const PT_WINDOW_MS=864e5;
+let _ptWins=[], _ptInterval=null;
+const ptClean=t=>String(t||'').trim().split(' ')[0];
+
 async function loadPrayerTimes(){
   const cached=gLoad('prayerTimesCache',null);
   const today=dateKey(new Date());
   if(cached&&cached.date===today){ renderSalahTimesCard(cached.timings); return; }
   try{
-    const resp=await fetch(`https://api.aladhan.com/v1/timings/${today}?latitude=23.4607&longitude=91.1809&method=1`);
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),8000);
+    const resp=await fetch(`https://api.aladhan.com/v1/timings/${today}?latitude=23.4607&longitude=91.1809&method=1`,{signal:ctrl.signal});
+    clearTimeout(to);
     if(!resp.ok) throw new Error();
     const data=await resp.json();
     const timings=data.data.timings;
     gSave('prayerTimesCache',{date:today,timings});
     renderSalahTimesCard(timings);
   }catch(e){
-    const c=document.getElementById('pt-windows-content');
-    if(c) c.innerHTML='<div style="font-size:12px;color:#c0392b;text-align:center;padding:8px;">Unavailable offline</div>';
+    // offline / API down: use a built-in Cumilla estimate (not cached, so the real times are retried next open)
+    renderSalahTimesCard(fallbackPrayerTimes(new Date()),true);
   }
 }
 
-function renderSalahTimesCard(timings){
+function ptColor(remMs,totMs){
+  const rem=remMs/60000, tot=totMs/60000;
+  if(rem<=Math.min(tot*0.10,10)) return '#d63b3b';
+  if(rem<=Math.min(tot*0.25,30)) return '#e67e22';
+  if(rem<=Math.min(tot*0.50,90)) return '#d4a017';
+  return '#1e8a4a';
+}
+const ptPad=n=>String(n).padStart(2,'0');
+function ptFmt(ms){ const s=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60; return h>0?`${h}:${ptPad(m)}:${ptPad(sec)}`:`${ptPad(m)}:${ptPad(sec)}`; }
+function ptFmtLong(ms){ const m=Math.max(0,Math.floor(ms/60000)); const h=Math.floor(m/60); return h>0?`${h}h ${m%60}m`:`${m}m`; }
+
+function tickPT(){
+  if(dateKey(new Date())!==dateKey(TODAY)){ location.reload(); return; }
+  const now=Date.now();
+  _ptWins.forEach(w=>{
+    const el=document.getElementById(w.id); if(!el) return;
+    const dot=el.firstChild, txt=el.lastChild;
+    let state, s=w.s, e=w.e;
+    if(now>=w.s-PT_WINDOW_MS && now<w.e-PT_WINDOW_MS){ s=w.s-PT_WINDOW_MS; e=w.e-PT_WINDOW_MS; state='on'; }
+    else if(now>=w.s && now<w.e) state='on';
+    else if(now<w.s) state='soon';
+    else state='off';
+    if(state==='on'){
+      const col=ptColor(e-now,e-s);
+      el.style.color=col; el.style.background=col+'22'; el.style.fontWeight='700'; el.style.opacity='1';
+      dot.style.background=col; dot.style.display='block'; txt.textContent=ptFmt(e-now);
+    } else if(state==='soon'){
+      el.style.color='#8a96a6'; el.style.background='transparent'; el.style.fontWeight='500'; el.style.opacity='1';
+      dot.style.display='none'; txt.textContent='in '+ptFmtLong(w.s-now);
+    } else {
+      el.style.color='#8a96a6'; el.style.background='transparent'; el.style.fontWeight='500'; el.style.opacity='.55';
+      dot.style.display='none'; txt.textContent='Ended';
+    }
+  });
+}
+
+function renderSalahTimesCard(timings,approx){
   const c=document.getElementById('pt-windows-content');
   if(!c) return;
-  const F=timings.Fajr, Sr=timings.Sunrise, D=timings.Dhuhr, A=timings.Asr, M=timings.Maghrib, I=timings.Isha;
+  const F=ptClean(timings.Fajr), Sr=ptClean(timings.Sunrise), D=ptClean(timings.Dhuhr), A=ptClean(timings.Asr), M=ptClean(timings.Maghrib), I=ptClean(timings.Isha);
+  const Mid=timings.Midnight?ptClean(timings.Midnight):addMin(M,Math.round(((toMin(F)+1440-toMin(M))/2)));
   const ishraqStart=addMin(Sr,15), ishraqEnd=addMin(Sr,90);
   const chastEnd=addMin(D,-10);
   const forbidDawnS=addMin(Sr,-10), forbidDawnE=addMin(Sr,20);
   const forbidNoonS=addMin(D,-8), forbidNoonE=D;
   const forbidDuskS=addMin(M,-20), forbidDuskE=addMin(M,5);
 
-  const rowHTML=(name,st,en,color='#0f1f3d')=>`
+  const base=new Date(); base.setHours(0,0,0,0); const b0=base.getTime();
+  _ptWins=[]; let n=0;
+  const rowHTML=(name,st,en,endLabel)=>{
+    const id='pt-timer-'+(n++);
+    let s=b0+toMin(st)*60000, e=b0+toMin(en)*60000; if(e<=s) e+=PT_WINDOW_MS;
+    _ptWins.push({id,s,e});
+    return `
     <div class="pt-window-row">
       <div class="pt-window-name text-navy">${name}</div>
       <div class="pt-window-time">${to12(st)}</div>
-      <div class="pt-window-end">→ ${to12(en)}</div>
+      <div class="pt-window-end">→ ${endLabel||to12(en)}</div>
+      <div class="pt-timer" id="${id}"><i class="pt-dot"></i><span></span></div>
     </div>`;
+  };
   const forbRow=(name,st,en)=>`
     <div class="pt-forbidden-row">
       <div style="display:flex;align-items:center;gap:4px;"><span class="forbidden-badge">⛔</span><span style="font-size:11px;color:#c0392b;font-weight:600;">${name}</span></div>
       <div style="font-size:11px;color:#c0392b;">${to12(st)}</div>
       <div style="font-size:11px;color:#c0392b;">→ ${to12(en)}</div>
+      <div></div>
     </div>`;
 
   c.innerHTML=`
@@ -1271,9 +1361,9 @@ function renderSalahTimesCard(timings){
     ${rowHTML('Dhuhr',D,A)}
     ${rowHTML('Asr',A,M)}
     ${rowHTML('Maghrib',M,I)}
-    ${rowHTML('Isha',I,'Midnight')}
+    ${rowHTML('Isha',I,Mid,'Midnight')}
     <div class="pt-section-head" style="margin-top:8px;">Nafl Prayers</div>
-    ${rowHTML('Tahajjud',timings.Midnight||'00:00',F)}
+    ${rowHTML('Tahajjud',Mid,F)}
     ${rowHTML('Ishraq',ishraqStart,ishraqEnd)}
     ${rowHTML('Chasht / Duha',ishraqEnd,chastEnd)}
     ${rowHTML('Awwabin',M,I)}
@@ -1281,8 +1371,13 @@ function renderSalahTimesCard(timings){
     ${forbRow('Sunrise',forbidDawnS,forbidDawnE)}
     ${forbRow('Zawal (Noon)',forbidNoonS,forbidNoonE)}
     ${forbRow('Sunset',forbidDuskS,forbidDuskE)}
+    ${approx?'<div style="font-size:10px;color:#6b7a8d;text-align:center;margin-top:8px;">≈ Offline estimate for Cumilla — exact times load when you’re back online</div>':''}
   `;
+  tickPT();
+  if(!_ptInterval) _ptInterval=setInterval(tickPT,1000);
 }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tickPT(); });
+
 
 // ── MOOD / WEATHER ────────────────────────────────────────────────
 function initPickers(){
@@ -1298,7 +1393,7 @@ function initEnergy(){
   const lbls=['Very Low','Low','Medium','High','Very High'];
   const defs=[{key:'energyMorn',label:'Morning'},{key:'energyPost',label:'Post-work'},{key:'energyNight',label:'Night'}];
   const c=document.getElementById('energy-sliders'); c.innerHTML='';
-  defs.forEach(e=>{ const val=load(e.key,3); const wrap=document.createElement('div'); wrap.style.marginBottom='10px'; wrap.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;color:#6b7a8d;">${e.label}</span><span style="font-size:12px;color:#c8a84b;font-weight:600;" id="lbl-${e.key}">${lbls[val-1]}</span></div><input type="range" min="1" max="5" value="${val}" style="width:100%;accent-color:#c8a84b;" oninput="save('${e.key}',+this.value);document.getElementById('lbl-${e.key}').textContent=['Very Low','Low','Medium','High','Very High'][this.value-1]"/>`; c.appendChild(wrap); });
+  defs.forEach(e=>{ const val=load(e.key,3); const wrap=document.createElement('div'); wrap.style.marginBottom='10px'; wrap.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;color:#6b7a8d;">${e.label}</span><span style="font-size:12px;color:#c8a84b;font-weight:600;" id="lbl-${e.key}">${lbls[val-1]}</span></div><input type="range" min="1" max="5" value="${esc(val)}" style="width:100%;accent-color:#c8a84b;" oninput="save('${e.key}',+this.value);document.getElementById('lbl-${e.key}').textContent=['Very Low','Low','Medium','High','Very High'][this.value-1]"/>`; c.appendChild(wrap); });
 }
 
 // ── TEXT FIELDS ───────────────────────────────────────────────────
@@ -1314,6 +1409,9 @@ function calcSleepDuration(){ const s=document.getElementById('f-sleepTime'), w=
 
 // ── SALAH TABLE ───────────────────────────────────────────────────
 const PRAYERS=['Fajr','Dhuhr','Asr','Maghrib','Isha'];
+const NO_SUNNAH=['Asr'];
+// gray = not prayed, red = prayed but not on time, orange = on time without sunnah, teal = on time + sunnah
+function wpClass(sd,p){ if(!sd[p+'_fard']) return 'miss'; if(!sd[p+'_ontime']) return 'late'; if(!NO_SUNNAH.includes(p) && !sd[p+'_sunnah']) return 'nosunnah'; return 'done'; }
 function initSalah(){
   const sn={Fajr:true,Dhuhr:true,Asr:false,Maghrib:true,Isha:true};
   const tbody=document.getElementById('salah-tbody'); tbody.innerHTML='';
@@ -1321,7 +1419,7 @@ function initSalah(){
   PRAYERS.forEach(p=>{ const tr=document.createElement('tr'); const warn=(p==='Dhuhr'||p==='Asr')?`<span class="work-warn">⚠</span>`:''; tr.innerHTML=`<td style="font-weight:600;" class="text-navy">${p}${warn}</td><td style="text-align:center;"><div class="cb" id="scb-${p}-fard" style="border-color:#1a6b72;margin:auto;" onclick="toggleSalahCb('${p}','fard')"></div></td><td style="text-align:center;">${sn[p]?`<div class="cb" id="scb-${p}-sunnah" style="border-color:#c8a84b;margin:auto;" onclick="toggleSalahCb('${p}','sunnah')"></div>`:'<span style="color:#ddd8ce;">—</span>'}</td><td style="text-align:center;"><div class="cb" id="scb-${p}-ontime" style="border-color:#1e8a4a;margin:auto;" onclick="toggleSalahCb('${p}','ontime')"></div></td>`; tbody.appendChild(tr); ['fard','sunnah','ontime'].forEach(t=>{ if(data[p+'_'+t]) renderCb('scb-'+p+'-'+t,true,t==='sunnah'?'#c8a84b':t==='ontime'?'#1e8a4a':'#1a6b72'); }); });
   updateStreakDisplay();
 }
-function toggleSalahCb(p,t){ const data=load('salahData',{}); data[p+'_'+t]=!data[p+'_'+t]; save('salahData',data); renderCb('scb-'+p+'-'+t,data[p+'_'+t],t==='sunnah'?'#c8a84b':t==='ontime'?'#1e8a4a':'#1a6b72'); if(t==='fard') updateStreakDisplay(); }
+function toggleSalahCb(p,t){ const data=load('salahData',{}); data[p+'_'+t]=!data[p+'_'+t]; save('salahData',data); renderCb('scb-'+p+'-'+t,data[p+'_'+t],t==='sunnah'?'#c8a84b':t==='ontime'?'#1e8a4a':'#1a6b72'); if(t==='fard') updateStreakDisplay(); initWeeklySummary(); initMonthlySummary(); }
 function renderCb(id,checked,color){ const el=document.getElementById(id); if(!el) return; el.style.background=checked?color:'transparent'; el.style.borderColor=checked?color:color+'66'; el.innerHTML=checked?'<span style="color:#fff;font-size:11px;">✓</span>':''; }
 function toggleCb(key,elId,color){ const val=!load(key,false); save(key,val); renderCb(elId,val,color); }
 
@@ -1586,7 +1684,7 @@ function renderTasbeehUI(){
   const ringC=cnt>=tgt?'#1e8a4a':'#c8a84b', numC=cnt>=tgt?'#1e8a4a':'#1a6b72';
 
   const ds=document.createElement('div'); ds.style.cssText='margin-bottom:14px;';
-  const opts=TASBEEH_LIST.map(t=>`<option value="${t.key}"${t.key===activeTKey?' selected':''}>${t.en}</option>`).join('');
+  const opts=TASBEEH_LIST.map(t=>`<option value="${esc(t.key)}"${t.key===activeTKey?' selected':''}>${t.en}</option>`).join('');
   ds.innerHTML=`<select class="modern-select" id="tasbeeh-select" onchange="selectTasbeeh(this.value)">${opts}</select>`;
   c.appendChild(ds);
 
@@ -1673,7 +1771,7 @@ function toggleFast(day){
   else card.classList.remove('active-fast');
   document.getElementById('fast-'+day+'-icon').textContent=val?'✅':'⬜'; 
 }
-function initFasts(){ ['mon','thu'].forEach(d=>{if(load('fast_'+d,false)) toggleFast(d);}); }
+function initFasts(){ ['mon','thu'].forEach(d=>{ const on=load('fast_'+d,false); const card=document.getElementById('fast-'+d); const icon=document.getElementById('fast-'+d+'-icon'); if(!card||!icon) return; card.classList.toggle('active-fast',!!on); icon.textContent=on?'✅':'⬜'; }); }
 
 // ── ADHKAR ────────────────────────────────────────────────────────
 function initAdhkar(){ if(load('adhkar_morning',false)) renderCb('cb-morning',true,'#1a6b72'); if(load('adhkar_evening',false)) renderCb('cb-evening',true,'#1a6b72'); }
@@ -1698,7 +1796,7 @@ const DUA_DB={
 };
 
 function initDuaDropdown() {
-  const opts = Object.keys(DUA_DB).map(k=>`<option value="${k}">${DUA_DB[k].title}</option>`).join('');
+  const opts = Object.keys(DUA_DB).map(k=>`<option value="${esc(k)}">${DUA_DB[k].title}</option>`).join('');
   document.getElementById('dua-select-container').innerHTML = `<select class="modern-select" id="dua-select" onchange="showDua(this.value)"><option value="">— Select a Du'a —</option>${opts}</select>`;
 }
 
@@ -1715,73 +1813,101 @@ function showDua(key){
 }
 
 // ── PRIORITIES ────────────────────────────────────────────────────
-function initPriorities(){ const c=document.getElementById('priorities-list'); c.innerHTML=''; const saved=load('priorities',['','','']); for(let i=0;i<3;i++){const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px;'; row.innerHTML=`<div style="width:24px;height:24px;border-radius:7px;background:#1a6b72;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div><input class="inp text-navy" placeholder="Priority ${i+1}..." value="${saved[i]||''}" oninput="savePriority(${i},this.value)"/>`; c.appendChild(row);} }
+function initPriorities(){ const c=document.getElementById('priorities-list'); c.innerHTML=''; const saved=load('priorities',['','','']); for(let i=0;i<3;i++){const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px;'; row.innerHTML=`<div style="width:24px;height:24px;border-radius:7px;background:#1a6b72;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div><input class="inp text-navy" placeholder="Priority ${i+1}..." value="${esc(saved[i]||'')}" oninput="savePriority(${i},this.value)"/>`; c.appendChild(row);} }
 function savePriority(i,val){ const p=load('priorities',['','','']); p[i]=val; save('priorities',p); }
 
 // ── SCHEDULE ──────────────────────────────────────────────────────
 const DEFAULT_SCHED=[{time:'4:30 AM',label:'Tahajjud / Fajr',notes:''},{time:'5:00–8:00 AM',label:'Morning Routine',notes:''},{time:'8:00–9:30 AM',label:'Work – Deep Focus',notes:''},{time:'12:00 PM',label:'Dhuhr Prayer',notes:''},{time:'12:15–1:00 PM',label:'Lunch Break',notes:''},{time:'3:30 PM',label:'Asr Prayer',notes:''},{time:'7:00 PM',label:'Maghrib Prayer',notes:''},{time:'9:00 PM',label:'Isha Prayer',notes:''},{time:'10:50 PM',label:'Sleep',notes:''}];
 function initSchedule(){ const c=document.getElementById('schedule-blocks'); c.innerHTML=''; const rows=load('scheduleRows',DEFAULT_SCHED); const card=document.createElement('div'); card.className='card'; card.style.padding='12px'; const hdr=document.createElement('div'); hdr.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 28px;gap:6px;margin-bottom:6px;'; hdr.innerHTML='<div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">TIME</div><div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">TASK</div><div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px;">NOTES</div><div></div>'; card.appendChild(hdr); const rc=document.createElement('div'); rc.id='sched-rows-inner'; card.appendChild(rc); const ab=document.createElement('button'); ab.className='btn'; ab.style.cssText='font-size:12px;color:#1a6b72;background:none;border:1px dashed #1a6b72;width:100%;margin-top:8px;'; ab.textContent='+ Add row'; ab.onclick=()=>{const r=load('scheduleRows',DEFAULT_SCHED);r.push({time:'',label:'',notes:''});save('scheduleRows',r);renderSchedRow(rc,r,r.length-1);}; card.appendChild(ab); c.appendChild(card); rows.forEach((_,i)=>renderSchedRow(rc,rows,i)); }
-function renderSchedRow(container,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.id='sched-row-'+i; row.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:11px;padding:5px 6px;color:#1a6b72;font-weight:600;" placeholder="Time..." value="${r.time||''}" oninput="saveSchedField(${i},'time',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Task..." value="${r.label||''}" oninput="saveSchedField(${i},'label',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Notes..." value="${r.notes||''}" oninput="saveSchedField(${i},'notes',this.value)"/><button onclick="deleteSchedRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; container.appendChild(row); }
+function renderSchedRow(container,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.id='sched-row-'+i; row.style.cssText='display:grid;grid-template-columns:80px 1fr 1fr 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:11px;padding:5px 6px;color:#1a6b72;font-weight:600;" placeholder="Time..." value="${esc(r.time||'')}" oninput="saveSchedField(${i},'time',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Task..." value="${esc(r.label||'')}" oninput="saveSchedField(${i},'label',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Notes..." value="${esc(r.notes||'')}" oninput="saveSchedField(${i},'notes',this.value)"/><button onclick="deleteSchedRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; container.appendChild(row); }
 function saveSchedField(i,f,v){ const r=load('scheduleRows',DEFAULT_SCHED); if(!r[i]) r[i]={time:'',label:'',notes:''}; r[i][f]=v; save('scheduleRows',r); }
 function deleteSchedRow(i){ const r=load('scheduleRows',DEFAULT_SCHED); r.splice(i,1); save('scheduleRows',r); document.getElementById('schedule-blocks').innerHTML=''; initSchedule(); }
 
 // ── TODOS ─────────────────────────────────────────────────────────
-function initTodos(){ const c=document.getElementById('todo-list'); c.innerHTML=''; const todos=load('todos',Array(6).fill({text:'',done:false})); todos.forEach((t,i)=>{const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;'; row.innerHTML=`<div class="cb" id="todo-cb-${i}" style="border-color:#1a6b72;" onclick="toggleTodo(${i})"></div><input class="inp text-navy" id="todo-inp-${i}" placeholder="Task ${i+1}..." value="${t.text||''}" style="text-decoration:${t.done?'line-through':'none'};color:${t.done?'#6b7a8d':''};" oninput="saveTodo(${i},'text',this.value)"/>`; c.appendChild(row); if(t.done) renderCb('todo-cb-'+i,true,'#1a6b72'); }); }
-function toggleTodo(i){ const t=load('todos',Array(6).fill({text:'',done:false})); t[i]={...t[i],done:!t[i].done}; save('todos',t); renderCb('todo-cb-'+i,t[i].done,'#1a6b72'); const inp=document.getElementById('todo-inp-'+i); inp.style.textDecoration=t[i].done?'line-through':'none'; inp.classList.toggle('text-navy',!t[i].done); inp.style.color=t[i].done?'#6b7a8d':''; }
-function saveTodo(i,f,v){ const t=load('todos',Array(6).fill({text:'',done:false})); t[i]={...t[i],[f]:v}; save('todos',t); }
+function initTodos(){
+  const c=document.getElementById('todo-list'); c.innerHTML='';
+  const todos=load('todos',Array(6).fill(null).map(()=>({text:'',done:false})));
+  const rc=document.createElement('div'); rc.id='todo-rows-inner'; c.appendChild(rc);
+  todos.forEach((t,i)=>{
+    const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    row.innerHTML=`<div class="cb" id="todo-cb-${i}" style="border-color:#1a6b72;flex-shrink:0;" onclick="toggleTodo(${i})"></div><input class="inp text-navy" id="todo-inp-${i}" placeholder="Task ${i+1}..." value="${esc(t.text||'')}" style="text-decoration:${t.done?'line-through':'none'};color:${t.done?'#6b7a8d':''};" oninput="saveTodo(${i},'text',this.value)"/><button onclick="deleteTodo(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0 2px;flex-shrink:0;">×</button>`;
+    rc.appendChild(row);
+    if(t.done) renderCb('todo-cb-'+i,true,'#1a6b72');
+  });
+  const ab=document.createElement('button'); ab.className='btn'; ab.style.cssText='font-size:12px;color:#1a6b72;background:none;border:1px dashed #1a6b72;width:100%;margin-top:4px;'; ab.textContent='+ Add row'; ab.onclick=addTodo; c.appendChild(ab);
+}
+function getTodos(){ return load('todos',Array(6).fill(null).map(()=>({text:'',done:false}))); }
+function addTodo(){ const t=getTodos(); t.push({text:'',done:false}); save('todos',t); initTodos(); const inp=document.getElementById('todo-inp-'+(t.length-1)); if(inp) inp.focus(); }
+function deleteTodo(i){ const t=getTodos(); t.splice(i,1); save('todos',t); initTodos(); }
+function toggleTodo(i){ const t=getTodos(); t[i]={...t[i],done:!t[i].done}; save('todos',t); renderCb('todo-cb-'+i,t[i].done,'#1a6b72'); const inp=document.getElementById('todo-inp-'+i); inp.style.textDecoration=t[i].done?'line-through':'none'; inp.classList.toggle('text-navy',!t[i].done); inp.style.color=t[i].done?'#6b7a8d':''; }
+function saveTodo(i,f,v){ const t=getTodos(); t[i]={...t[i],[f]:v}; save('todos',t); }
 
 // ── WATER & BEVERAGES ─────────────────────────────────────────────
-function initWater(){ const c=document.getElementById('water-drops'); c.innerHTML=''; const w=load('water',0); for(let i=0;i<8;i++){const s=document.createElement('span'); s.textContent='💧'; s.style.cssText='font-size:26px;cursor:pointer;transition:opacity 0.15s;'; s.style.opacity=i<w?'1':'0.25'; s.onclick=()=>{const cur=load('water',0);const nw=i<cur?i:i+1;save('water',nw);refreshWater(nw);}; c.appendChild(s);} refreshWater(w); }
-function refreshWater(w){ document.querySelectorAll('#water-drops span').forEach((d,i)=>d.style.opacity=i<w?'1':'0.25'); document.getElementById('water-label').textContent=`${w} / 8 glasses · ${w*250}ml`; save('water',w); }
+const WATER_DROPS=7, WATER_DROP_ML=500;
+function initWater(){ const c=document.getElementById('water-drops'); c.innerHTML=''; const w=load('water',0); for(let i=0;i<WATER_DROPS;i++){ const s=document.createElement('span'); s.textContent='💧'; s.style.cssText='font-size:26px;cursor:pointer;transition:opacity 0.15s;'; s.onclick=()=>{ const cur=Math.min(WATER_DROPS,load('water',0)); const nw=i<cur?i:i+1; save('water',nw); refreshWater(nw); }; c.appendChild(s); } refreshWater(w); }
+function refreshWater(w){ w=Math.min(WATER_DROPS,Math.max(0,+w||0)); document.querySelectorAll('#water-drops span').forEach((d,i)=>d.style.opacity=i<w?'1':'0.25'); document.getElementById('water-label').textContent=`${(w*WATER_DROP_ML).toLocaleString()} / ${(WATER_DROPS*WATER_DROP_ML).toLocaleString()} ml`; }
 let caffeineVal=0; let teaVal=0;
 function adjCaffeine(d){ caffeineVal=Math.max(0,caffeineVal+d); document.getElementById('caffeine-val').textContent=caffeineVal; save('caffeine',caffeineVal); }
 function adjTea(d){ teaVal=Math.max(0,teaVal+d); document.getElementById('tea-val').textContent=teaVal; save('tea',teaVal); }
 
 // ── BMI CALCULATOR ────────────────────────────────────────────────
+const BMI_STOPS=[[14,0],[18.5,12.7],[24,50],[28,86.3],[34,100]];
+function bmiPos(b){ if(b<=BMI_STOPS[0][0]) return 0; for(let i=0;i<BMI_STOPS.length-1;i++){ const [x0,y0]=BMI_STOPS[i],[x1,y1]=BMI_STOPS[i+1]; if(b<=x1) return y0+(b-x0)/(x1-x0)*(y1-y0); } return 100; }
 function calcBMI() {
-  const h = parseFloat(document.getElementById('bmi-h').value) / 100;
+  const hcm = parseFloat(document.getElementById('bmi-h').value);
   const w = parseFloat(document.getElementById('bmi-w').value);
-  if(!h || !w) return;
-  const bmi = (w / (h * h)).toFixed(1);
+  const res = document.getElementById('bmi-result');
+  if(!hcm || !w || hcm<50 || hcm>260 || w<=0){ res.style.display='block'; res.innerHTML='<div style="font-size:12px;color:#c0392b;text-align:center;">Enter a valid height (cm) and weight (kg).</div>'; return; }
+  const h = hcm / 100;
+  const bmi = Math.round(w / (h * h) * 10) / 10;
   let cat = "", color = "";
-  if(bmi < 18.5) { cat = "Underweight"; color = "#c8a84b"; }
-  else if(bmi < 24.9) { cat = "Normal"; color = "#1e8a4a"; }
-  else if(bmi < 29.9) { cat = "Overweight"; color = "#e67e22"; }
-  else { cat = "Obese"; color = "#c0392b"; }
+  if(bmi < 18.5) { cat = "Underweight"; color = "#29a8ff"; }
+  else if(bmi < 24) { cat = "Normal"; color = "#16a765"; }
+  else if(bmi < 28) { cat = "Overweight"; color = "#f59e0b"; }
+  else { cat = "Obese"; color = "#f97316"; }
   const recW_min = (18.5 * h * h).toFixed(1);
-  const recW_max = (24.9 * h * h).toFixed(1);
-
+  const recW_max = (23.9 * h * h).toFixed(1);
+  const pos = bmiPos(bmi).toFixed(1);
   const isDark = document.body.classList.contains('dark-mode');
   const bg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
   const border = isDark ? '#30363d' : '#ddd8ce';
-
-  document.getElementById('bmi-result').style.display = 'block';
-  document.getElementById('bmi-result').innerHTML = `
+  const tickCss = 'position:absolute;top:0;transform:translateX(-50%);font-size:12px;font-weight:700;color:#6b7a8d;';
+  res.style.display = 'block';
+  res.innerHTML = `
     <div style="background:${bg}; padding:12px; border-radius:8px; border:1px solid ${border};">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <span style="font-size:13px; color:var(--muted);">Your BMI:</span>
-        <span style="font-size:20px; font-weight:800; color:${color};">${bmi}</span>
+        <span style="font-size:20px; font-weight:800; color:${color};">${bmi.toFixed(1)}</span>
       </div>
-      <div style="font-size:14px; font-weight:600; color:${color}; margin-bottom:8px; text-align:right;">${cat}</div>
-      <div style="font-size:11px; color:var(--muted); border-top:1px solid ${border}; padding-top:8px;">
-        Recommended weight range: <strong>${recW_min} - ${recW_max} kg</strong>
+      <div style="font-size:14px; font-weight:600; color:${color}; margin-bottom:6px; text-align:right;">${cat}</div>
+      <div style="position:relative; height:46px; margin:4px 6px 0;">
+        <div style="position:absolute; left:${pos}%; top:0; transform:translateX(-${pos}%); background:${color}; color:#fff; font-size:13px; font-weight:700; padding:5px 12px; border-radius:10px; white-space:nowrap;">${cat}</div>
+        <div style="position:absolute; left:${pos}%; top:27px; transform:translateX(-50%); width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:6px solid ${color};"></div>
+        <div style="position:absolute; left:0; right:0; top:36px; height:10px; border-radius:99px; background:linear-gradient(90deg,#5bc0f0 0%,#3aafa9 14%,#17a865 36%,#8aa83a 50%,#c9a21a 60%,#ffa00a 70%,#f97316 100%);"></div>
+      </div>
+      <div style="position:relative; height:20px; margin:6px 6px 0;">
+        <span style="${tickCss}left:12.7%;">18.5</span><span style="${tickCss}left:50%;">24.0</span><span style="${tickCss}left:86.3%;">28.0</span>
+      </div>
+      <div style="font-size:11px; color:var(--muted); border-top:1px solid ${border}; padding-top:8px; margin-top:8px;">
+        Healthy weight range: <strong>${recW_min} - ${recW_max} kg</strong>
       </div>
     </div>
   `;
 }
+function clearBMI(){ ['bmi-h','bmi-w','bmi-age'].forEach(id=>{ document.getElementById(id).value=''; }); document.getElementById('bmi-gender').value='male'; const r=document.getElementById('bmi-result'); r.style.display='none'; r.innerHTML=''; }
 
 // ── MEALS ─────────────────────────────────────────────────────────
-function initMeals(){ const c=document.getElementById('meal-inputs'); c.innerHTML=''; const meals=['breakfast','lunch','dinner','snacks']; const saved=load('meals',{}); meals.forEach(m=>{const wrap=document.createElement('div'); wrap.style.marginBottom='8px'; wrap.innerHTML=`<div style="font-size:11px;color:#6b7a8d;margin-bottom:3px;text-transform:capitalize;">${m}</div><input class="inp text-navy" placeholder="What did you have for ${m}?" value="${saved[m]||''}" oninput="saveMeal('${m}',this.value)"/>`; c.appendChild(wrap);}); }
+function initMeals(){ const c=document.getElementById('meal-inputs'); c.innerHTML=''; const meals=['breakfast','lunch','dinner','snacks']; const saved=load('meals',{}); meals.forEach(m=>{const wrap=document.createElement('div'); wrap.style.marginBottom='8px'; wrap.innerHTML=`<div style="font-size:11px;color:#6b7a8d;margin-bottom:3px;text-transform:capitalize;">${m}</div><input class="inp text-navy" placeholder="What did you have for ${m}?" value="${esc(saved[m]||'')}" oninput="saveMeal('${m}',this.value)"/>`; c.appendChild(wrap);}); }
 function saveMeal(m,v){ const meals=load('meals',{}); meals[m]=v; save('meals',meals); }
 
 // ── MONEY ─────────────────────────────────────────────────────────
 function initMoney(){ renderIncRows(); renderExpRows(); renderSadRows(); updateBalance(); }
 function renderIncRows(){ const c=document.getElementById('income-rows'); c.innerHTML=''; const inc=load('income',[{amt:'',from:''}]); inc.forEach((_,i)=>renderIncRow(c,inc,i)); }
-function renderIncRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${r.amt||''}" oninput="saveMRow('income',${i},'amt',this.value)"/><input class="inp" placeholder="Source" value="${r.from||''}" oninput="saveMRow('income',${i},'from',this.value)"/><button onclick="deleteMRow('income',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function renderIncRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${esc(r.amt||'')}" oninput="saveMRow('income',${i},'amt',this.value)"/><input class="inp" placeholder="Source" value="${esc(r.from||'')}" oninput="saveMRow('income',${i},'from',this.value)"/><button onclick="deleteMRow('income',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
 function renderExpRows(){ const c=document.getElementById('expense-rows'); c.innerHTML=''; const exp=load('expenses',[{amt:'',from:'Transport'},{amt:'',from:'Food'},{amt:'',from:''},{amt:'',from:''}]); exp.forEach((_,i)=>renderExpRow(c,exp,i)); }
-function renderExpRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${r.amt||''}" oninput="saveMRow('expenses',${i},'amt',this.value)"/><input class="inp" placeholder="Category" value="${r.from||''}" oninput="saveMRow('expenses',${i},'from',this.value)"/><button onclick="deleteMRow('expenses',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function renderExpRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${esc(r.amt||'')}" oninput="saveMRow('expenses',${i},'amt',this.value)"/><input class="inp" placeholder="Category" value="${esc(r.from||'')}" oninput="saveMRow('expenses',${i},'from',this.value)"/><button onclick="deleteMRow('expenses',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
 function renderSadRows(){ const c=document.getElementById('sadaqah-rows'); c.innerHTML=''; const sad=load('sadaqah',[{amt:'',from:''}]); sad.forEach((_,i)=>renderSadRow(c,sad,i)); }
-function renderSadRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${r.amt||''}" oninput="saveMRow('sadaqah',${i},'amt',this.value)"/><input class="inp" placeholder="Cause / recipient" value="${r.from||''}" oninput="saveMRow('sadaqah',${i},'from',this.value)"/><button onclick="deleteMRow('sadaqah',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function renderSadRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 24px;gap:8px;margin-bottom:8px;align-items:center;'; row.innerHTML=`<input class="inp" placeholder="৳ Amount" value="${esc(r.amt||'')}" oninput="saveMRow('sadaqah',${i},'amt',this.value)"/><input class="inp" placeholder="Cause / recipient" value="${esc(r.from||'')}" oninput="saveMRow('sadaqah',${i},'from',this.value)"/><button onclick="deleteMRow('sadaqah',${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
 function saveMRow(type,i,f,v){ const a=load(type,[]); if(!a[i]) a[i]={amt:'',from:''}; a[i][f]=v; save(type,a); updateBalance(); }
 function deleteMRow(type,i){ const a=load(type,[]); a.splice(i,1); save(type,a); if(type==='income') renderIncRows(); else if(type==='expenses') renderExpRows(); else renderSadRows(); updateBalance(); }
 function addIncomeRow(){ const inc=load('income',[]); inc.push({amt:'',from:''}); save('income',inc); renderIncRows(); }
@@ -1797,51 +1923,73 @@ function resetRunningBalance(){
 // ── READING ───────────────────────────────────────────────────────
 function initReading(){ renderQuranRows(); renderHadithRows(); renderBookRows(); if(new Date().getDay()===5){const el=document.getElementById('kahf-remind-reading');if(el) el.style.display='block';} }
 function renderQuranRows(){ const c=document.getElementById('quran-rows'); c.innerHTML=''; const rows=gLoad('quranRows',[{surah:'',from:'',to:''}]); rows.forEach((_,i)=>renderQRow(c,rows,i)); }
-function renderQRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 80px 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Surah" value="${r.surah||''}" oninput="saveQField(${i},'surah',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="From" value="${r.from||''}" oninput="saveQField(${i},'from',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="To" value="${r.to||''}" oninput="saveQField(${i},'to',this.value)"/><button onclick="deleteQRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function renderQRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:90px 1fr 80px 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Surah" value="${esc(r.surah||'')}" oninput="saveQField(${i},'surah',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="From" value="${esc(r.from||'')}" oninput="saveQField(${i},'from',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="To" value="${esc(r.to||'')}" oninput="saveQField(${i},'to',this.value)"/><button onclick="deleteQRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
 function saveQField(i,f,v){ const r=gLoad('quranRows',[{surah:'',from:'',to:''}]); if(!r[i]) r[i]={surah:'',from:'',to:''}; r[i][f]=v; gSave('quranRows',r); }
 function addQuranRow(){ const r=gLoad('quranRows',[{surah:'',from:'',to:''}]); r.push({surah:'',from:'',to:''}); gSave('quranRows',r); renderQuranRows(); }
 function deleteQRow(i){ const r=gLoad('quranRows',[]); r.splice(i,1); gSave('quranRows',r); renderQuranRows(); }
 function renderHadithRows(){ const c=document.getElementById('hadith-rows'); c.innerHTML=''; const rows=gLoad('hadithRows',[{collection:'',num:''}]); rows.forEach((_,i)=>renderHRow(c,rows,i)); }
-function renderHRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:1fr 90px 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Collection" value="${r.collection||''}" oninput="saveHField(${i},'collection',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="# e.g. 54" value="${r.num||''}" oninput="saveHField(${i},'num',this.value)"/><button onclick="deleteHRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
+function renderHRow(c,rows,i){ const r=rows[i]; const row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:1fr 90px 28px;gap:6px;margin-bottom:6px;align-items:center;'; row.innerHTML=`<input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="Collection" value="${esc(r.collection||'')}" oninput="saveHField(${i},'collection',this.value)"/><input class="inp" style="font-size:12px;padding:5px 6px;" placeholder="# e.g. 54" value="${esc(r.num||'')}" oninput="saveHField(${i},'num',this.value)"/><button onclick="deleteHRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;padding:0;">×</button>`; c.appendChild(row); }
 function saveHField(i,f,v){ const r=gLoad('hadithRows',[{collection:'',num:''}]); if(!r[i]) r[i]={collection:'',num:''}; r[i][f]=v; gSave('hadithRows',r); }
 function addHadithRow(){ const r=gLoad('hadithRows',[{collection:'',num:''}]); r.push({collection:'',num:''}); gSave('hadithRows',r); renderHadithRows(); }
 function deleteHRow(i){ const r=gLoad('hadithRows',[]); r.splice(i,1); gSave('hadithRows',r); renderHadithRows(); }
-function renderBookRows(){ const c=document.getElementById('book-rows'); c.innerHTML=''; const books=gLoad('bookRows',[{title:'',total:'',read:''}]); books.forEach((_,i)=>renderBRow(c,books,i)); }
+function renderBookRows(){ const c=document.getElementById('book-rows'); c.innerHTML=''; const books=gLoad('bookRows',[{title:'',total:'',read:''}]); books.forEach((bk,i)=>{ if(bookVisibleOn(bk,selectedDateKey)) renderBRow(c,books,i); }); }
+// A book shows from the day it was added until the day it hit 100%, and never after that.
+function bookVisibleOn(bk,dk){ if(bk.addedOn && dk<bk.addedOn) return false; if(bk.finishedOn && dk>bk.finishedOn) return false; return true; }
 // red (0%) -> orange -> yellow -> green (100%)
 function pctColor(p){ return 'hsl('+Math.round(Math.max(0,Math.min(100,p))*1.2)+',72%,40%)'; }
-function renderBRow(c,books,i){ 
-  const b=books[i]; 
-  const pct=b.total>0?Math.min(100,Math.round((+b.read||0)/(+b.total)*100)):0; 
-  const cb=pctColor(pct); 
-  const wrap=document.createElement('div'); 
-  wrap.id='book-row-'+i; 
-  wrap.className='book-row'; // Switched inline CSS to dynamic class for Dark Mode
+const BOOK_GRADIENT='linear-gradient(90deg,#e5484d 0%,#f97316 33%,#e0b01c 62%,#16a765 100%)';
+function bookPct(bk){ return bk.total>0?Math.min(100,Math.round((+bk.read||0)/(+bk.total)*100)):0; }
+function bookBarHTML(i,pct){
+  const col=pctColor(pct);
+  const tick='position:absolute;top:0;transform:translateX(-50%);font-size:11px;font-weight:700;color:#6b7a8d;';
+  return `<div style="position:relative;height:44px;margin:2px 6px 0;">
+      <div id="book-bubble-${i}" style="position:absolute;left:${pct}%;top:0;transform:translateX(-${pct}%);background:${col};color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:10px;white-space:nowrap;">${pct}%${pct>=100?' ✓':''}</div>
+      <div id="book-ptr-${i}" style="position:absolute;left:${pct}%;top:24px;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid ${col};"></div>
+      <div style="position:absolute;left:0;right:0;top:34px;height:10px;border-radius:99px;background:${BOOK_GRADIENT};overflow:hidden;">
+        <div id="book-fade-${i}" style="position:absolute;top:0;bottom:0;right:0;width:${100-pct}%;opacity:.7;transition:width .4s;" class="book-fade"></div>
+      </div>
+    </div>
+    <div style="position:relative;height:16px;margin:4px 6px 0;"><span style="${tick}left:0;transform:none;">0</span><span style="${tick}left:50%;">50</span><span style="${tick}left:auto;right:0;transform:none;">100</span></div>`;
+}
+function renderBRow(c,books,i){
+  const b=books[i];
+  const pct=bookPct(b);
+  const wrap=document.createElement('div');
+  wrap.id='book-row-'+i;
+  wrap.className='book-row';
   wrap.innerHTML=`
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-      <input class="inp text-navy" style="font-size:13px;font-weight:600;padding:5px 8px;flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);" placeholder="Book title..." value="${b.title||''}" oninput="saveBField(${i},'title',this.value)"/>
+      <input class="inp text-navy" style="font-size:13px;font-weight:600;padding:5px 8px;flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);" placeholder="Book title..." value="${esc(b.title||'')}" oninput="saveBField(${i},'title',this.value)"/>
       <button onclick="deleteBRow(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#c0392b;flex-shrink:0;">×</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
       <div>
         <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Total pages</div>
-        <input class="inp text-navy" type="number" style="font-size:12px;padding:5px 8px;" placeholder="e.g. 320" value="${b.total||''}" oninput="saveBField(${i},'total',this.value);updateBookBar(${i})"/>
+        <input class="inp text-navy" type="number" style="font-size:12px;padding:5px 8px;" placeholder="e.g. 320" value="${esc(b.total||'')}" oninput="saveBField(${i},'total',this.value);updateBookBar(${i})"/>
       </div>
       <div>
         <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Pages read</div>
-        <input class="inp text-navy" type="number" style="font-size:12px;padding:5px 8px;" placeholder="e.g. 24" value="${b.read||''}" oninput="saveBField(${i},'read',this.value);updateBookBar(${i})"/>
+        <input class="inp text-navy" type="number" style="font-size:12px;padding:5px 8px;" placeholder="e.g. 24" value="${esc(b.read||'')}" oninput="saveBField(${i},'read',this.value);updateBookBar(${i})"/>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div style="flex:1;height:8px;background:#e0ddd7;border-radius:99px;overflow:hidden;">
-        <div id="book-bar-${i}" style="height:100%;border-radius:99px;background:${cb};width:${pct}%;transition:width 0.4s;"></div>
-      </div>
-      <span id="book-pct-${i}" style="font-size:12px;font-weight:700;color:${cb};min-width:36px;text-align:right;">${pct}%</span>
-    </div>`; 
-  c.appendChild(wrap); 
+    <div id="book-bar-${i}">${bookBarHTML(i,pct)}</div>`;
+  c.appendChild(wrap);
 }
 function saveBField(i,f,v){ const b=gLoad('bookRows',[{title:'',total:'',read:''}]); if(!b[i]) b[i]={title:'',total:'',read:''}; b[i][f]=v; gSave('bookRows',b); }
-function updateBookBar(i){ const b=gLoad('bookRows',[]); const bk=b[i]||{}; const pct=bk.total>0?Math.min(100,Math.round((+bk.read||0)/(+bk.total)*100)):0; const cb=pctColor(pct); const bar=document.getElementById('book-bar-'+i),lbl=document.getElementById('book-pct-'+i); if(bar){bar.style.width=pct+'%';bar.style.background=cb;} if(lbl){lbl.textContent=pct+'%';lbl.style.color=cb;} }
-function addBookRow(){ const b=gLoad('bookRows',[]); b.push({title:'',total:'',read:''}); gSave('bookRows',b); renderBookRows(); }
+function updateBookBar(i){
+  const b=gLoad('bookRows',[]); const bk=b[i]; if(!bk) return;
+  const total=+bk.total||0, read=+bk.read||0;
+  // stamp the day the book reaches 100%; clear it if pages are lowered again
+  const done=total>0 && read>=total;
+  if(done && !bk.finishedOn){ bk.finishedOn=selectedDateKey; gSave('bookRows',b); }
+  else if(!done && bk.finishedOn){ delete bk.finishedOn; gSave('bookRows',b); }
+  const pct=bookPct(bk); const col=pctColor(pct);
+  const bub=document.getElementById('book-bubble-'+i), ptr=document.getElementById('book-ptr-'+i), fade=document.getElementById('book-fade-'+i);
+  if(bub){ bub.style.left=pct+'%'; bub.style.transform='translateX(-'+pct+'%)'; bub.style.background=col; bub.textContent=pct+'%'+(pct>=100?' ✓':''); }
+  if(ptr){ ptr.style.left=pct+'%'; ptr.style.borderTopColor=col; }
+  if(fade){ fade.style.width=(100-pct)+'%'; }
+}
+function addBookRow(){ const b=gLoad('bookRows',[]); b.push({title:'',total:'',read:'',addedOn:selectedDateKey}); gSave('bookRows',b); renderBookRows(); }
 function deleteBRow(i){ const b=gLoad('bookRows',[]); b.splice(i,1); gSave('bookRows',b); renderBookRows(); }
 
 // ── WEEKLY SUMMARY ────────────────────────────────────────────────
@@ -1859,12 +2007,14 @@ function initWeeklySummary(){
     wPT+=done; if(done===5) wC++;
     const isFut=d>TODAY;
     const row=document.createElement('div'); row.className='week-row';
-    row.innerHTML=`<div class="week-day">${dayNames[d.getDay()]}</div><div class="week-prayers">${PRAYERS.map((p,pi)=>`<div class="wp-dot ${sd[p+'_fard']?'done':'miss'}" style="${isFut?'opacity:0.3;':''}">${sP[pi]}</div>`).join('')}</div><div class="week-stat">${isFut?'–':done+'/5'}</div>`;
+    row.innerHTML=`<div class="week-day">${dayNames[d.getDay()]}</div><div class="week-prayers">${PRAYERS.map((p,pi)=>`<div class="wp-dot ${wpClass(sd,p)}" style="${isFut?'opacity:0.3;':''}">${sP[pi]}</div>`).join('')}</div><div class="week-stat">${isFut?'–':done+'/5'}</div>`;
     c.appendChild(row);
   }
   const sum=document.createElement('div'); sum.style.cssText='margin-top:10px;padding-top:8px;border-top:1px solid #f0ece4;display:flex;justify-content:space-between;font-size:12px;';
   sum.innerHTML=`<span style="color:var(--muted);">This week: <strong style="color:#1a6b72;">${wPT}/35</strong></span><span style="color:var(--muted);">${wC} complete days 🟩</span>`;
+  const lg=document.createElement('div'); lg.className='wp-legend'; lg.innerHTML='<span><i style="background:#1a6b72"></i>On time + sunnah</span><span><i style="background:#e67e22"></i>No sunnah</span><span><i style="background:#c0392b"></i>Late</span><span><i class="g"></i>Missed</span>';
   c.appendChild(sum);
+  c.appendChild(lg);
 }
 
 function initMonthlySummary(){
@@ -1981,6 +2131,7 @@ window.onload=function(){
   reloadAllForDate();
   cloudInit();
 };
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && dateKey(new Date())!==dateKey(TODAY)) location.reload(); });
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
 </script>
 </body>
